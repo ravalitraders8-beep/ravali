@@ -1,11 +1,17 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import { ShopLogo } from "./ShopLogo";
 import { labels, t } from "@/lib/i18n";
 import { useLang } from "@/context/LangContext";
-import { PWA_PROMPT_READY_EVENT, usePWAInstall } from "@/hooks/usePWAInstall";
+import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { INSTALL_PROMPT_EVENT } from "@/lib/constants";
+import {
+  isAndroidChrome,
+  isPromptReady,
+  subscribePwaInstall,
+  triggerChromeInstall,
+} from "@/lib/pwa-install-store";
 import {
   dismissInstallPrompt,
   shouldShowInstallPrompt,
@@ -17,19 +23,58 @@ function isMobileDevice(): boolean {
 }
 
 function subscribeInstallPrompt(onChange: () => void) {
+  const unsub = subscribePwaInstall(onChange);
   window.addEventListener(INSTALL_PROMPT_EVENT, onChange);
-  window.addEventListener(PWA_PROMPT_READY_EVENT, onChange);
   return () => {
+    unsub();
     window.removeEventListener(INSTALL_PROMPT_EVENT, onChange);
-    window.removeEventListener(PWA_PROMPT_READY_EVENT, onChange);
   };
 }
 
-/** Popup after QR scan — install RAVALI app on phone */
+/** Fixed bar — Chrome install when prompt is ready (backup if modal dismissed) */
+export function PwaInstallBar() {
+  const { lang } = useLang();
+  const { installed, canInstall, isAndroid } = usePWAInstall();
+  const [installing, setInstalling] = useState(false);
+
+  if (installed || !isAndroid || !canInstall) return null;
+
+  const handleInstall = async () => {
+    setInstalling(true);
+    try {
+      await triggerChromeInstall();
+    } finally {
+      setInstalling(false);
+    }
+  };
+
+  return (
+    <div className="fixed bottom-[4.25rem] left-0 right-0 z-40 px-3">
+      <button
+        type="button"
+        onClick={() => void handleInstall()}
+        disabled={installing}
+        className="btn-big mx-auto flex w-full max-w-lg items-center justify-center gap-2 rounded-2xl bg-[#1a2744] text-base text-white shadow-lg disabled:opacity-70"
+      >
+        <span className="text-2xl" aria-hidden>
+          📲
+        </span>
+        <span>
+          {installing
+            ? t(lang, labels.installing.en, labels.installing.te)
+            : t(lang, labels.installNow.en, labels.installNow.te)}
+        </span>
+      </button>
+    </div>
+  );
+}
+
+/** Popup after QR scan — tap Install to open Chrome native dialog */
 export function InstallAppPrompt() {
   const { lang } = useLang();
-  const { installed, canInstall, isAndroid, isIOS, install } = usePWAInstall();
+  const { installed, canInstall, isAndroid, isIOS } = usePWAInstall();
   const [installing, setInstalling] = useState(false);
+  const [installError, setInstallError] = useState(false);
 
   const wantsPrompt = useSyncExternalStore(
     subscribeInstallPrompt,
@@ -41,25 +86,37 @@ export function InstallAppPrompt() {
     isMobileDevice,
     () => false
   );
+  const promptReady = useSyncExternalStore(
+    subscribePwaInstall,
+    isPromptReady,
+    () => false
+  );
 
   const open = wantsPrompt && !installed && isMobile;
 
-  const handleInstall = async () => {
-    if (!canInstall) return;
+  const handleInstall = useCallback(async () => {
+    if (!isPromptReady()) {
+      setInstallError(true);
+      return;
+    }
     setInstalling(true);
+    setInstallError(false);
     try {
-      const ok = await install();
+      const ok = await triggerChromeInstall();
       if (ok) dismissInstallPrompt();
     } finally {
       setInstalling(false);
     }
-  };
+  }, []);
 
   const handleLater = () => {
     dismissInstallPrompt();
   };
 
   if (!open) return null;
+
+  const androidChrome = isAndroidChrome();
+  const showInstallButton = isAndroid && (canInstall || promptReady);
 
   return (
     <div
@@ -95,23 +152,34 @@ export function InstallAppPrompt() {
 
         {isAndroid && (
           <>
-            {!canInstall && (
+            {!showInstallButton && !installError && (
               <p className="mt-4 rounded-2xl bg-amber-50 p-3 text-center text-sm font-bold text-amber-900">
                 {t(lang, labels.installAndroidWait.en, labels.installAndroidWait.te)}
               </p>
             )}
-            {canInstall && (
-              <button
-                type="button"
-                onClick={() => void handleInstall()}
-                disabled={installing}
-                className="btn-big mt-5 w-full rounded-2xl bg-[#e85d00] text-lg text-white disabled:opacity-70"
-              >
-                {installing
-                  ? t(lang, labels.installing.en, labels.installing.te)
-                  : t(lang, labels.installNow.en, labels.installNow.te)}
-              </button>
+
+            {installError && !canInstall && (
+              <p className="mt-4 rounded-2xl bg-amber-50 p-3 text-center text-sm font-bold text-amber-900">
+                {androidChrome
+                  ? t(lang, labels.installChromeManual.en, labels.installChromeManual.te)
+                  : t(lang, labels.installAndroidWait.en, labels.installAndroidWait.te)}
+              </p>
             )}
+
+            <button
+              type="button"
+              onClick={() => void handleInstall()}
+              disabled={installing}
+              className={`btn-big mt-5 w-full rounded-2xl text-lg text-white disabled:opacity-70 ${
+                showInstallButton ? "animate-pulse bg-[#e85d00]" : "bg-[#e85d00]/90"
+              }`}
+            >
+              {installing
+                ? t(lang, labels.installing.en, labels.installing.te)
+                : showInstallButton
+                  ? t(lang, labels.installNow.en, labels.installNow.te)
+                  : t(lang, labels.installTryNow.en, labels.installTryNow.te)}
+            </button>
           </>
         )}
 

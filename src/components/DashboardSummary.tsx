@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getContractorCategoryRank } from "@/lib/category-about";
 import { formatINR, getProgressStatus } from "@/lib/currency";
 import { labels, progressMessage, t } from "@/lib/i18n";
+import { userMotivation } from "@/lib/motivation";
 import { useLang } from "@/context/LangContext";
 import type { Category, LeaderboardEntry } from "@/lib/types";
 
@@ -67,7 +68,7 @@ export function DashboardSummary({
                 {t(lang, "Start your journey!", "మొదలు పెట్టండి!")}
               </p>
               <p className="mt-0.5 text-base font-semibold text-gray-600">
-                {t(lang, "Buy from shop → win gifts 🎁", "షాప్ నుండి కొనండి → బహుమతులు 🎁")}
+                {t(lang, userMotivation.journey.en, userMotivation.journey.te)}
               </p>
             </>
           ) : (

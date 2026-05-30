@@ -2,20 +2,12 @@
 
 import { useEffect } from "react";
 
+/** Backup SW registration (primary register runs in beforeInteractive script) */
 export function PWARegister() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
-    const register = async () => {
-      try {
-        const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-        reg.update().catch(() => {});
-      } catch {
-        /* offline or unsupported context */
-      }
-    };
-
-    void register();
+    void navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
   }, []);
 
   return null;

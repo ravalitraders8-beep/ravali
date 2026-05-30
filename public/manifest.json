@@ -3,7 +3,7 @@
   "name": "RAVALI TRADERS",
   "short_name": "RAVALI",
   "description": "కాంట్రాక్టర్ బహుమతుల డాష్‌బోర్డ్ — Contractor rewards app",
-  "start_url": "/?source=pwa",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],

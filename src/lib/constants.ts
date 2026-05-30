@@ -1,7 +1,9 @@
 export const SHOP_NAME = "RAVALI TRADERS";
 export const LOGO_PATH = "/logo.png";
-/** Full English marketing logo — help panel background */
+/** Full English marketing logo — help panel background (English) */
 export const LOGO_EN_PATH = "/logo-en.png";
+/** Full Telugu marketing logo — help panel background (Telugu) */
+export const LOGO_TE_PATH = "/logo-te.png";
 export const SHOP_PHONE = "919989250122";
 export const WHATSAPP_MESSAGE =
   "Hello RAVALI TRADERS! I have a question about my rewards. | నమస్కారం RAVALI TRADERS!";

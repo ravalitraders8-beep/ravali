@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Noto_Sans_Telugu, Inter } from "next/font/google";
 import { LangProvider } from "@/context/LangContext";
 import { PWARegister } from "@/components/PWARegister";
+import { PWA_CAPTURE_SCRIPT } from "@/lib/pwa-install-store";
+import Script from "next/script";
 import "./globals.css";
 
 const notoTelugu = Noto_Sans_Telugu({
@@ -54,6 +56,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="te" className={`${notoTelugu.variable} ${inter.variable} h-full`}>
+      <head>
+        <Script id="ravali-pwa-capture" strategy="beforeInteractive">
+          {PWA_CAPTURE_SCRIPT}
+        </Script>
+      </head>
       <body className="min-h-full flex flex-col bg-white font-sans text-gray-900 antialiased">
         <LangProvider>
           {children}

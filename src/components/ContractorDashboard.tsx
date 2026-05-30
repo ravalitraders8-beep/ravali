@@ -6,7 +6,7 @@ import { DashboardSummary } from "./DashboardSummary";
 import { labels, t } from "@/lib/i18n";
 import { useLang } from "@/context/LangContext";
 import { ContactShopButton } from "./ContactShopButton";
-import { InstallAppPrompt } from "./InstallAppPrompt";
+import { InstallAppPrompt, PwaInstallBar } from "./InstallAppPrompt";
 import { UserLeaderboard } from "./UserLeaderboard";
 import { GiftsSection } from "./GiftsSection";
 import type { ContractorDashboardData } from "@/lib/types";
@@ -79,6 +79,7 @@ export function ContractorDashboard({ data }: ContractorDashboardProps) {
       </main>
 
       <InstallAppPrompt />
+      <PwaInstallBar />
       <ContactShopButton />
     </div>
   );

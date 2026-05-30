@@ -6,7 +6,7 @@ import { HelpPanelBackground } from "./HelpPanelBackground";
 import { ShopLogo } from "./ShopLogo";
 import { getCategoryAbout } from "@/lib/category-about";
 import { aboutUs } from "@/lib/about-us";
-import { SHOP_PHONE, LOGO_EN_PATH } from "@/lib/constants";
+import { SHOP_PHONE, LOGO_EN_PATH, LOGO_TE_PATH } from "@/lib/constants";
 import { userMotivation } from "@/lib/motivation";
 import { labels, t } from "@/lib/i18n";
 import { useLang } from "@/context/LangContext";
@@ -165,10 +165,10 @@ export function SideHelpButton({ bottomOffset = "bottom-24", category }: SideHel
                 {t(lang, labels.contactShop.en, labels.contactShop.te)}
               </a>
 
-              {/* Full English logo at bottom of help section */}
+              {/* Language-specific logo at bottom of help section */}
               <div className="mt-8 flex flex-col items-center rounded-2xl border-2 border-[#1a2744]/10 bg-white/90 p-5 shadow-sm">
                 <Image
-                  src={LOGO_EN_PATH}
+                  src={lang === "te" ? LOGO_TE_PATH : LOGO_EN_PATH}
                   alt="RAVALI TRADERS"
                   width={280}
                   height={320}

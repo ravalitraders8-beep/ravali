@@ -1,17 +1,23 @@
 /** Motivational copy for contractors — simple, encouraging, Telugu + English */
 
 export const userMotivation = {
-  /** Main quote — intro splash & help panel */
+  /** Main quote — intro splash */
   quote: {
-    en: "Every purchase lifts your rank — keep buying, your gift is getting closer! 💪",
-    te: "ప్రతి కొనుగోలు మీ rank ను పెంచుతుంది — కొనసాగించండి, మీ బహుమతి దగ్గరకు వస్తోంది! 💪",
+    en: "Your craft builds lasting homes — we celebrate you with gifts you truly deserve ✨",
+    te: "మీ చేతి వృత్తి నిలకడగా నిలుస్తుంది — దానికి తగిన బహుమతి మీ కోసం ✨",
   },
+  /** Tagline — help panel & trade cards (matches Telugu logo) */
   tagline: {
-    en: "Work hard. Buy from RAVALI. Win your gift!",
-    te: "పని చేయండి. రవళి నుండి కొనండి. బహుమతి గెలుచుకోండి!",
+    en: "Built on trust — built for your lasting success.",
+    te: "నమ్మకంపై నిర్మించాం. నిలకడ కోసం అందిస్తున్నాం.",
+  },
+  /** Dashboard — not started yet */
+  journey: {
+    en: "Take the first step — RAVALI walks with you toward your reward 🌱",
+    te: "మొదటి అడుగు వేయండి — మీ బహుమతి వైపు రవళి మీతో ఉంటుంది 🌱",
   },
   footer: {
-    en: "RAVALI TRADERS — your partner in every build.",
-    te: "రవళి ట్రేడర్స్ — మీ నిర్మాణానికి మా మద్దతు.",
+    en: "Quality is our promise — service is our goal.",
+    te: "నాణ్యత మా వాగ్దానం — సేవ మా లక్ష్యం.",
   },
 } as const;

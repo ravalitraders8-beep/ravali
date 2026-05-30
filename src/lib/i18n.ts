@@ -42,8 +42,13 @@ export const labels = {
   installLater: { en: "Later", te: "తర్వాత" },
   installing: { en: "Installing...", te: "వేచండి..." },
   installAndroidWait: {
-    en: "Tap Install App below when the button appears (may take a few seconds)",
-    te: "బటన్ వచ్చిన తర్వాత ‘App జోడించండి’ ను ట్యాప్ చేయండి",
+    en: "Waiting for Chrome… Install button appears in a moment",
+    te: "Chrome కోసం వేచండి… Install బటన్ వస్తుంది",
+  },
+  installTryNow: { en: "Install App (Tap)", te: "App జోడించండి (ట్యాప్)" },
+  installChromeManual: {
+    en: "Chrome: tap ⋮ menu (top right) → “Install app” or “Add to Home screen”",
+    te: "Chrome: ⋮ మెనూ → “Install app” లేదా “Add to Home screen”",
   },
   installIos1: { en: "1. Tap Share ⎙ at bottom of Safari", te: "① Safari కింద Share ⎙ ను ట్యాప్ చేయండి" },
   installIos2: { en: "2. Tap “Add to Home Screen”", te: "② “Add to Home Screen” ట్యాప్ చేయండి" },
@@ -54,6 +59,7 @@ export const labels = {
   startNow: { en: "Start now!", te: "ఇప్పుడు ప్రారంభించండి!" },
   motivationQuote: userMotivation.quote,
   motivationTagline: userMotivation.tagline,
+  motivationJourney: userMotivation.journey,
 };
 
 export function progressMessage(lang: Lang, percent: number): string {
