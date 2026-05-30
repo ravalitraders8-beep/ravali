@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { LOGO_MARK_PATH, LOGO_PATH, SHOP_NAME } from "@/lib/constants";
+import { LOGO_PATH, SHOP_NAME } from "@/lib/constants";
 
 const SIZES = {
   sm: { width: 120, height: 60, className: "h-10 w-auto sm:h-11" },
@@ -11,17 +11,21 @@ const SIZES = {
   xl: { width: 320, height: 160, className: "h-28 w-auto max-w-[85vw] sm:h-32" },
 } as const;
 
+const DARK_SIZES = {
+  sm: "h-9 w-auto",
+  md: "h-14 w-auto",
+  lg: "h-20 w-auto",
+  xl: "h-24 w-auto max-w-[85vw] sm:h-28",
+} as const;
+
 type ShopLogoProps = {
   size?: keyof typeof SIZES;
   className?: string;
   priority?: boolean;
-  /** Use on navy/dark headers — transparent logo, no white box */
+  /** Navy/dark headers — full logo on white pill for contrast */
   onDark?: boolean;
-  /** Explicit link — overrides home */
   href?: string;
-  /** Auto home link: user → / (scan or dashboard), admin → /admin */
   home?: "user" | "admin" | false;
-  /** In-app action instead of navigation (e.g. admin overview tab) */
   onLogoClick?: () => void;
 };
 
@@ -38,26 +42,30 @@ export function ShopLogo({
 
   const image = (
     <Image
-      src={onDark ? LOGO_MARK_PATH : LOGO_PATH}
+      src={LOGO_PATH}
       alt={SHOP_NAME}
       width={s.width}
       height={s.height}
       priority={priority}
-      className={`object-contain ${onDark ? "" : "bg-white"} ${s.className} ${className}`}
+      className={`object-contain ${onDark ? DARK_SIZES[size] : `bg-white ${s.className}`} ${className}`}
     />
   );
 
-  const wrapClass = "inline-flex shrink-0 rounded-lg transition-opacity hover:opacity-90 active:opacity-80";
+  const content = onDark ? (
+    <span className="inline-flex items-center justify-center rounded-xl bg-white px-2 py-1 shadow-md">
+      {image}
+    </span>
+  ) : (
+    image
+  );
+
+  const wrapClass =
+    "inline-flex shrink-0 rounded-xl transition-opacity hover:opacity-90 active:opacity-80";
 
   if (onLogoClick) {
     return (
-      <button
-        type="button"
-        onClick={onLogoClick}
-        className={wrapClass}
-        aria-label={SHOP_NAME}
-      >
-        {image}
+      <button type="button" onClick={onLogoClick} className={wrapClass} aria-label={SHOP_NAME}>
+        {content}
       </button>
     );
   }
@@ -67,10 +75,10 @@ export function ShopLogo({
   if (target) {
     return (
       <Link href={target} className={wrapClass} aria-label={SHOP_NAME}>
-        {image}
+        {content}
       </Link>
     );
   }
 
-  return image;
+  return content;
 }
