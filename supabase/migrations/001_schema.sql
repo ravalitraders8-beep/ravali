@@ -94,42 +94,6 @@ VALUES
   ('Diamond', 'డైమండ్',  100000, NULL,   'Special Reward + Trophy', 'బహుమతి + ట్రోఫీ', '💎', '#B9F2FF')
 ON CONFLICT DO NOTHING;
 
--- Seed 15 Contractors
-INSERT INTO contractors (name_english, name_telugu, phone, village_english, village_telugu, category_id, qr_token)
-SELECT 'Ramesh Painter',   'రమేష్ పెయింటర్',  '9100000001', 'Miryalaguda',  'మిర్యాలగూడ',  id, 'CTR-PAINT-001' FROM categories WHERE name_english = 'Painter'
-UNION ALL SELECT 'Venkat Painter',   'వెంకట్ పెయింటర్', '9100000002', 'Nalgonda',     'నల్గొండ',      id, 'CTR-PAINT-002' FROM categories WHERE name_english = 'Painter'
-UNION ALL SELECT 'Lakshmi Painter',  'లక్ష్మీ పెయింటర్', '9100000003', 'Tirumalgiri',  'తిరుమల్‌గిరి', id, 'CTR-PAINT-003' FROM categories WHERE name_english = 'Painter'
-UNION ALL SELECT 'Suresh Kumar',     'సురేష్ కుమార్',   '9100000004', 'Nakrekal',     'నాక్రేకల్',    id, 'CTR-ELEC-001'  FROM categories WHERE name_english = 'Electrician'
-UNION ALL SELECT 'Rajendra Elec',    'రాజేంద్ర',         '9100000005', 'Chandampet',   'చందంపేట',     id, 'CTR-ELEC-002'  FROM categories WHERE name_english = 'Electrician'
-UNION ALL SELECT 'Satish Elec',      'సతీష్',            '9100000006', 'Nalgonda',     'నల్గొండ',      id, 'CTR-ELEC-003'  FROM categories WHERE name_english = 'Electrician'
-UNION ALL SELECT 'Venkat Plumber',   'వెంకట్ ప్లంబర్',  '9100000007', 'Chandampet',   'చందంపేట',     id, 'CTR-PLMB-001'  FROM categories WHERE name_english = 'Plumber'
-UNION ALL SELECT 'Satyam Plumber',   'సత్యం ప్లంబర్',   '9100000008', 'Miryalaguda',  'మిర్యాలగూడ',  id, 'CTR-PLMB-002'  FROM categories WHERE name_english = 'Plumber'
-UNION ALL SELECT 'Mahesh Plumber',   'మహేష్ ప్లంబర్',   '9100000009', 'Tirumalgiri',  'తిరుమల్‌గిరి', id, 'CTR-PLMB-003'  FROM categories WHERE name_english = 'Plumber'
-UNION ALL SELECT 'Krishna Mestri',   'కృష్ణ మేస్త్రి',   '9100000010', 'Tirumalgiri',  'తిరుమల్‌గిరి', id, 'CTR-MASN-001'  FROM categories WHERE name_english = 'Mason'
-UNION ALL SELECT 'Gopal Mestri',     'గోపాల్ మేస్త్రి',  '9100000011', 'Nalgonda',     'నల్గొండ',      id, 'CTR-MASN-002'  FROM categories WHERE name_english = 'Mason'
-UNION ALL SELECT 'Nagesh Mestri',    'నాగేష్ మేస్త్రి',  '9100000012', 'Miryalaguda',  'మిర్యాలగూడ',  id, 'CTR-MASN-003'  FROM categories WHERE name_english = 'Mason'
-UNION ALL SELECT 'Raju Carpenter',   'రాజు కార్పెంటర్',  '9100000013', 'Nalgonda',     'నల్గొండ',      id, 'CTR-CARP-001'  FROM categories WHERE name_english = 'Carpenter'
-UNION ALL SELECT 'Ashok Carpenter',  'అశోక్ కార్పెంటర్', '9100000014', 'Chandampet',   'చందంపేట',     id, 'CTR-CARP-002'  FROM categories WHERE name_english = 'Carpenter'
-UNION ALL SELECT 'Suresh Carpenter', 'సురేష్ కార్పెంటర్','9100000015', 'Nakrekal',     'నాక్రేకల్',    id, 'CTR-CARP-003'  FROM categories WHERE name_english = 'Carpenter'
-ON CONFLICT DO NOTHING;
-
--- Sample transactions for current month
-INSERT INTO transactions (contractor_id, amount, reason_english, reason_telugu, transaction_date, month_year)
-SELECT c.id, 15000, 'New Customer', 'కొత్త కస్టమర్', CURRENT_DATE - 2, TO_CHAR(CURRENT_DATE, 'YYYY-MM')
-FROM contractors c WHERE c.qr_token = 'CTR-PAINT-001'
-UNION ALL SELECT c.id, 25000, 'Large Order', 'పెద్ద ఆర్డర్', CURRENT_DATE - 5, TO_CHAR(CURRENT_DATE, 'YYYY-MM')
-FROM contractors c WHERE c.qr_token = 'CTR-PAINT-001'
-UNION ALL SELECT c.id, 45000, 'Special Bonus', 'స్పెషల్ బోనస్', CURRENT_DATE - 1, TO_CHAR(CURRENT_DATE, 'YYYY-MM')
-FROM contractors c WHERE c.qr_token = 'CTR-ELEC-001'
-UNION ALL SELECT c.id, 55000, 'Large Order', 'పెద్ద ఆర్డర్', CURRENT_DATE - 3, TO_CHAR(CURRENT_DATE, 'YYYY-MM')
-FROM contractors c WHERE c.qr_token = 'CTR-MASN-001'
-UNION ALL SELECT c.id, 72000, 'Target Bonus', 'లక్ష్య బోనస్', CURRENT_DATE - 4, TO_CHAR(CURRENT_DATE, 'YYYY-MM')
-FROM contractors c WHERE c.qr_token = 'CTR-MASN-001'
-UNION ALL SELECT c.id, 38000, 'Festival Gift', 'పండుగ గిఫ్ట్', CURRENT_DATE - 6, TO_CHAR(CURRENT_DATE, 'YYYY-MM')
-FROM contractors c WHERE c.qr_token = 'CTR-PLMB-001'
-UNION ALL SELECT c.id, 62000, 'New Customer', 'కొత్త కస్టమర్', CURRENT_DATE - 2, TO_CHAR(CURRENT_DATE, 'YYYY-MM')
-FROM contractors c WHERE c.qr_token = 'CTR-CARP-001';
-
 -- RLS
 ALTER TABLE contractors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;

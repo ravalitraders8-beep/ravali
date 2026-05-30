@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
 
   if (!adminPin) {
     return NextResponse.json(
-      { error: "not_configured", message: "Admin PIN not set. Add ADMIN_PIN=123456 to .env.local and restart the server." },
+      { error: "not_configured", message: "Admin PIN not set. Add ADMIN_PIN to .env.local and restart the server." },
       { status: 503 }
     );
   }

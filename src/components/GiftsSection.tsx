@@ -27,6 +27,11 @@ export function GiftsSection({
         </h2>
       </div>
 
+      {rewardLevels.length === 0 ? (
+        <p className="py-8 text-center text-lg text-gray-500">
+          {t(lang, "No gifts set up yet", "ఇంకా బహుమతులు లేవు")}
+        </p>
+      ) : (
       <div className="grid grid-cols-2 gap-4">
         {rewardLevels.map((gift) => {
           const unlocked = monthlyAmount >= gift.min_amount;
@@ -56,6 +61,7 @@ export function GiftsSection({
           );
         })}
       </div>
+      )}
     </div>
   );
 }

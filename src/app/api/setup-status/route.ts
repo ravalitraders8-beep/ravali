@@ -15,8 +15,8 @@ export async function GET() {
       message: !hasPin
         ? "Admin PIN missing — add ADMIN_PIN to .env.local"
         : !hasSupabase
-          ? "Supabase not configured — add real keys to .env.local and run SQL migrations"
-          : "All set — live database connected",
+          ? "Shop not ready — contact the shop owner"
+          : "Ready",
     },
     "public"
   );

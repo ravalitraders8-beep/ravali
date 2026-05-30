@@ -77,6 +77,15 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const villageEn = String(village_english ?? "").trim();
+      const villageTe = String(village_telugu ?? "").trim();
+      if (!villageEn && !villageTe) {
+        return NextResponse.json(
+          { message: "Please fill village | గ్రామం నమోదు చేయండి" },
+          { status: 400 }
+        );
+      }
+
       const prefixMap: Record<string, string> = {
         Painter: "PAINT",
         Electrician: "ELEC",
@@ -102,8 +111,8 @@ export async function POST(request: NextRequest) {
           name_english: name_english.trim(),
           name_telugu: name_telugu.trim(),
           phone: phone.trim(),
-          village_english: (village_english || village_telugu || "Nalgonda").trim(),
-          village_telugu: (village_telugu || village_english || "నల్గొండ").trim(),
+          village_english: villageEn || villageTe,
+          village_telugu: villageTe || villageEn,
           category_id,
           qr_token,
         })

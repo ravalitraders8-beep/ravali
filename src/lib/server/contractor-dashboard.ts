@@ -59,6 +59,9 @@ async function fetchContractorDashboardFromDb(qrToken: string, monthYear: string
   }
 
   const category = contractor.categories;
+  if (!category) {
+    return { error: "no_category" as const };
+  }
   delete contractor.categories;
 
   const { data: transactions } = await supabase

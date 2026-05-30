@@ -35,8 +35,9 @@ export function useCachedApi<T>(
   );
 
   useEffect(() => {
+    // Always fetch fresh from Supabase on mount — never show stale cached rows
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial cached fetch on mount
-    void load();
+    void load(true);
   }, [load]);
 
   useEffect(() => {

@@ -115,8 +115,8 @@ export function AdminDashboard() {
   }, [lang]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount fetch
-    void loadAll();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount fetch from Supabase
+    void loadAll(true);
     return subscribeCache((tags) => {
       if (tags.some((t) => t === CACHE_TAGS.ADMIN || t === CACHE_TAGS.CONTRACTOR)) {
         void loadAll(true);
@@ -184,7 +184,11 @@ export function AdminDashboard() {
     );
   }
 
-  const chartData = (stats?.leaderboard ?? []).slice(0, 8).map((e) => ({
+  const rankedLeaderboard = (stats?.leaderboard ?? []).filter(
+    (e) => Number(e.total_amount) > 0
+  );
+
+  const chartData = rankedLeaderboard.slice(0, 8).map((e) => ({
     name: e.name_telugu.slice(0, 8),
     amount: Number(e.total_amount),
   }));
@@ -250,6 +254,9 @@ export function AdminDashboard() {
               <StatCard label={L("targetAchieved")} value={stats.targetAchievedCount} />
             </div>
             <Panel title={L("monthTotal")}>
+              {chartData.length === 0 ? (
+                <p className="py-12 text-center text-gray-500">{L("noContractors")}</p>
+              ) : (
               <div className="h-56 w-full sm:h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData}>
@@ -261,6 +268,7 @@ export function AdminDashboard() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
+              )}
             </Panel>
           </>
         )}
@@ -495,7 +503,12 @@ export function AdminDashboard() {
               </div>
             </Panel>
             <Panel title={L("recentTx")}>
-              {transactions.slice(0, 20).map((tx) => {
+              {transactions.length === 0 ? (
+                <p className="py-8 text-center text-gray-500">
+                  {ta(lang, "No transactions yet", "ఇంకా మొత్తాలు లేవు")}
+                </p>
+              ) : (
+              transactions.slice(0, 20).map((tx) => {
                 const c = contractors.find((x) => x.id === tx.contractor_id);
                 return (
                   <div
@@ -511,15 +524,19 @@ export function AdminDashboard() {
                     </span>
                   </div>
                 );
-              })}
+              })
+              )}
             </Panel>
           </>
         )}
 
         {tab === "leaderboard" && stats && (
           <Panel title={L("leaderboard")}>
-            {stats.leaderboard.map((e, i) => (
-              <div key={i} className="flex items-center gap-3 border-b border-gray-100 py-3">
+            {rankedLeaderboard.length === 0 ? (
+              <p className="py-12 text-center text-gray-500">{L("noContractors")}</p>
+            ) : (
+              rankedLeaderboard.map((e, i) => (
+              <div key={e.name_telugu + i} className="flex items-center gap-3 border-b border-gray-100 py-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 text-lg font-black text-[#e85d00]">
                   {i + 1}
                 </span>
@@ -529,12 +546,14 @@ export function AdminDashboard() {
                 </div>
                 <span className="shrink-0 font-black">{formatINR(Number(e.total_amount))}</span>
               </div>
-            ))}
+            ))
+            )}
+            {rankedLeaderboard.length > 0 && (
             <button
               type="button"
               onClick={async () => {
                 const canvas = document.createElement("canvas");
-                const leaders = stats.leaderboard.slice(0, 10);
+                const leaders = rankedLeaderboard.slice(0, 10);
                 canvas.width = 600;
                 canvas.height = 120 + leaders.length * 44;
                 const ctx = canvas.getContext("2d");
@@ -576,6 +595,7 @@ export function AdminDashboard() {
             >
               {L("exportWhatsapp")}
             </button>
+            )}
           </Panel>
         )}
 

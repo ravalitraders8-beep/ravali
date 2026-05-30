@@ -49,7 +49,7 @@ export default function DashboardPage() {
 
   if (errorType === "setup") return <SetupRequired />;
 
-  if (error || !data) {
+  if (error || !data || !data.category) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#fff8f0] p-6 text-center">
         <span className="text-6xl">😔</span>

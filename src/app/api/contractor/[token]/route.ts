@@ -27,6 +27,13 @@ export async function GET(
       );
     }
 
+    if ("error" in result && result.error === "no_category") {
+      return NextResponse.json(
+        { error: "no_category", message: "Contractor has no category assigned" },
+        { status: 422 }
+      );
+    }
+
     return jsonWithCache(result, "private-short");
   } catch (e) {
     return NextResponse.json(

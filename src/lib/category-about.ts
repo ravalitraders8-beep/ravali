@@ -159,7 +159,10 @@ export function getContractorCategoryRank(
   leaderboard: { contractor_id: string; category_telugu: string; total_amount: number }[]
 ): number | null {
   const inCategory = leaderboard
-    .filter((e) => e.category_telugu === category.name_telugu)
+    .filter(
+      (e) =>
+        e.category_telugu === category.name_telugu && Number(e.total_amount) > 0
+    )
     .sort((a, b) => b.total_amount - a.total_amount);
 
   const idx = inCategory.findIndex((e) => e.contractor_id === contractorId);

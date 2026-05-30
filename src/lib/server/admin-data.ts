@@ -26,7 +26,10 @@ async function fetchAdminStatsFromDb(monthYear: string) {
   }
 
   const monthTotal = (monthTx ?? []).reduce((s, t) => s + Number(t.amount), 0);
-  const top = leaderboard?.[0];
+  const ranked = (leaderboard ?? []).filter(
+    (e: { total_amount: number }) => Number(e.total_amount) > 0
+  );
+  const top = ranked[0];
   const targetAchieved = (leaderboard ?? []).filter(
     (e: { achievement_percent: number }) => Number(e.achievement_percent) >= 100
   ).length;
