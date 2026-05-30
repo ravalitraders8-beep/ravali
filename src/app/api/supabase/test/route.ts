@@ -1,5 +1,6 @@
 import { jsonWithCache } from "@/lib/cache-headers";
 import { getSupabaseUrl, isSupabaseConfigured } from "@/lib/env";
+import { friendlySupabaseError } from "@/lib/server/leaderboard-fallback";
 
 export async function GET() {
   if (!isSupabaseConfigured()) {
@@ -50,10 +51,12 @@ export async function GET() {
       "public"
     );
   } catch (e) {
+    const message = friendlySupabaseError(e instanceof Error ? e.message : "Connection failed");
     return jsonWithCache(
       {
         connected: false,
-        message: e instanceof Error ? e.message : "Connection failed",
+        message,
+        hint: "Check Vercel env vars (no spaces/newlines). Unpause project at supabase.com. Run migrations.",
       },
       "public"
     );

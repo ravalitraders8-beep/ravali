@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { jsonNoStore, jsonWithCache } from "@/lib/cache-headers";
 import { getAdminPin, isSupabaseConfigured } from "@/lib/env";
 import { getAdminData, getAdminStats } from "@/lib/server/admin-data";
+import { friendlySupabaseError } from "@/lib/server/leaderboard-fallback";
 import { bustServerCache } from "@/lib/server/cache-sync";
 
 function verifyPin(request: NextRequest): boolean {
@@ -32,23 +33,10 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await getAdminStats();
-
-    if ("error" in result && result.error === "rpc_error") {
-      return NextResponse.json(
-        {
-          error: "rpc_error",
-          message: "Leaderboard function missing — run 002_fix_leaderboard_functions.sql",
-        },
-        { status: 500 }
-      );
-    }
-
     return jsonWithCache(result, "private-short");
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Failed to load stats" },
-      { status: 500 }
-    );
+    const message = friendlySupabaseError(e instanceof Error ? e.message : "Failed to load stats");
+    return NextResponse.json({ error: "server_error", message }, { status: 503 });
   }
 }
 
@@ -206,9 +194,9 @@ export async function PATCH(request: NextRequest) {
     const data = await getAdminData();
     return jsonWithCache(data, "private-short");
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Failed to load admin data" },
-      { status: 500 }
+    const message = friendlySupabaseError(
+      e instanceof Error ? e.message : "Failed to load admin data"
     );
+    return NextResponse.json({ error: "server_error", message }, { status: 503 });
   }
 }

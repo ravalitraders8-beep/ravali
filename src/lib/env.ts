@@ -1,6 +1,6 @@
 function readEnv(...keys: string[]): string | undefined {
   for (const key of keys) {
-    const value = process.env[key];
+    const value = process.env[key]?.trim();
     if (value) return value;
   }
   return undefined;
@@ -31,7 +31,7 @@ export function getSupabaseAnonKey(): string {
 }
 
 export function getSupabaseServiceRoleKey(): string {
-  return process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  return (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
 }
 
 export function getAdminPin(): string {

@@ -7,6 +7,7 @@ export interface SetupStatus {
   ready: boolean;
   hasPin: boolean;
   hasSupabase: boolean;
+  connected?: boolean;
   hasUrl?: boolean;
   hasAnonKey?: boolean;
   message: string;

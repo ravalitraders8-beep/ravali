@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
 const PWA_INSTALLED_KEY = "ravali-pwa-installed";
+const PWA_STATE_EVENT = "ravali-pwa-state";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -27,12 +28,26 @@ function isAndroid(): boolean {
   return /Android/.test(navigator.userAgent);
 }
 
+function readInstalled(): boolean {
+  return isStandalone() || localStorage.getItem(PWA_INSTALLED_KEY) === "1";
+}
+
+function subscribePwaState(onChange: () => void) {
+  window.addEventListener(PWA_STATE_EVENT, onChange);
+  window.addEventListener("appinstalled", onChange);
+  return () => {
+    window.removeEventListener(PWA_STATE_EVENT, onChange);
+    window.removeEventListener("appinstalled", onChange);
+  };
+}
+
+function notifyPwaState() {
+  window.dispatchEvent(new Event(PWA_STATE_EVENT));
+}
+
 export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [installed, setInstalled] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return isStandalone() || localStorage.getItem(PWA_INSTALLED_KEY) === "1";
-  });
+  const installed = useSyncExternalStore(subscribePwaState, readInstalled, () => false);
   const [canInstall, setCanInstall] = useState(false);
 
   useEffect(() => {
@@ -43,10 +58,10 @@ export function usePWAInstall() {
     };
 
     const onInstalled = () => {
-      setInstalled(true);
       setCanInstall(false);
       setDeferredPrompt(null);
       localStorage.setItem(PWA_INSTALLED_KEY, "1");
+      notifyPwaState();
     };
 
     window.addEventListener("beforeinstallprompt", onInstallPrompt);
@@ -64,7 +79,7 @@ export function usePWAInstall() {
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === "accepted") {
       localStorage.setItem(PWA_INSTALLED_KEY, "1");
-      setInstalled(true);
+      notifyPwaState();
     }
     setDeferredPrompt(null);
     setCanInstall(false);

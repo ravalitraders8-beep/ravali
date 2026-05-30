@@ -4,6 +4,7 @@ import {
   CONTRACTOR_SESSION_KEY,
   SESSION_DURATION_MS,
   ADMIN_PIN_SESSION_KEY,
+  ADMIN_SESSION_EVENT,
 } from "./constants";
 import type { ContractorSession } from "./types";
 
@@ -40,6 +41,7 @@ export function setAdminPinSession(pin: string): void {
     ADMIN_PIN_SESSION_KEY,
     JSON.stringify({ pin, expiresAt: Date.now() + SESSION_DURATION_MS })
   );
+  window.dispatchEvent(new Event(ADMIN_SESSION_EVENT));
 }
 
 export function getAdminPinSession(): string | null {
@@ -60,6 +62,7 @@ export function getAdminPinSession(): string | null {
 
 export function clearAdminPinSession(): void {
   sessionStorage.removeItem(ADMIN_PIN_SESSION_KEY);
+  window.dispatchEvent(new Event(ADMIN_SESSION_EVENT));
 }
 
 export async function adminFetch(

@@ -6,3 +6,4 @@ export const WHATSAPP_MESSAGE =
 export const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 export const CONTRACTOR_SESSION_KEY = "ravali-contractor-session";
 export const ADMIN_PIN_SESSION_KEY = "ravali-admin-pin";
+export const ADMIN_SESSION_EVENT = "ravali-admin-session";

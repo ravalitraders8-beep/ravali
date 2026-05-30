@@ -2,6 +2,10 @@ import { unstable_cache } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache-tags";
 import { getCurrentMonthYear } from "@/lib/currency";
 import { getAdminClient } from "@/lib/supabase/admin";
+import {
+  fetchLeaderboardFallback,
+  friendlySupabaseError,
+} from "@/lib/server/leaderboard-fallback";
 
 async function fetchAdminStatsFromDb(monthYear: string) {
   const supabase = getAdminClient();
@@ -16,22 +20,22 @@ async function fetchAdminStatsFromDb(monthYear: string) {
     .select("amount, contractor_id")
     .eq("month_year", monthYear);
 
-  const { data: leaderboard, error: rpcError } = await supabase.rpc(
-    "get_monthly_leaderboard",
-    { p_month_year: monthYear }
-  );
+  let leaderboard: Awaited<ReturnType<typeof fetchLeaderboardFallback>> = [];
+  const { data: rpcData, error: rpcError } = await supabase.rpc("get_monthly_leaderboard", {
+    p_month_year: monthYear,
+  });
 
   if (rpcError) {
-    return { error: "rpc_error" as const, message: rpcError.message };
+    leaderboard = await fetchLeaderboardFallback(supabase, monthYear);
+  } else {
+    leaderboard = rpcData ?? [];
   }
 
   const monthTotal = (monthTx ?? []).reduce((s, t) => s + Number(t.amount), 0);
-  const ranked = (leaderboard ?? []).filter(
-    (e: { total_amount: number }) => Number(e.total_amount) > 0
-  );
+  const ranked = leaderboard.filter((e) => Number(e.total_amount) > 0);
   const top = ranked[0];
-  const targetAchieved = (leaderboard ?? []).filter(
-    (e: { achievement_percent: number }) => Number(e.achievement_percent) >= 100
+  const targetAchieved = leaderboard.filter(
+    (e) => Number(e.achievement_percent) >= 100
   ).length;
 
   return {
@@ -41,7 +45,7 @@ async function fetchAdminStatsFromDb(monthYear: string) {
       ? { name_telugu: top.name_telugu, amount: Number(top.total_amount) }
       : null,
     targetAchievedCount: targetAchieved,
-    leaderboard: leaderboard ?? [],
+    leaderboard,
     monthYear,
   };
 }
@@ -59,7 +63,7 @@ async function fetchAdminDataFromDb() {
     supabase.from("reward_levels").select("*").order("min_amount"),
   ]);
 
-  if (contractors.error) throw new Error(contractors.error.message);
+  if (contractors.error) throw new Error(friendlySupabaseError(contractors.error.message));
 
   return {
     contractors: contractors.data ?? [],

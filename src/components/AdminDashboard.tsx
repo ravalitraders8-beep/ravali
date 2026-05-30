@@ -73,7 +73,7 @@ export function AdminDashboard() {
     contractor_id: "",
     amount: 5000,
     reasonIdx: 0,
-    transaction_date: new Date().toISOString().slice(0, 10),
+    transaction_date: "",
   });
   const [qrPreview, setQrPreview] = useState<{
     url: string;
@@ -101,11 +101,14 @@ export function AdminDashboard() {
       setTxForm((p) => ({
         ...p,
         contractor_id: p.contractor_id || (data.contractors as Contractor[])?.[0]?.id || "",
+        transaction_date: p.transaction_date || new Date().toISOString().slice(0, 10),
       }));
     } catch (err) {
-      const status = (err as { status?: number }).status;
-      if (status === 401) {
+      const body = err as { status?: number; message?: string };
+      if (body.status === 401) {
         setLoadError(ta(lang, adminLabels.sessionExpired.en, adminLabels.sessionExpired.te));
+      } else if (body.message) {
+        setLoadError(body.message);
       } else {
         setLoadError(ta(lang, adminLabels.failed.en, adminLabels.failed.te));
       }
@@ -172,7 +175,7 @@ export function AdminDashboard() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#f5f5f5] p-6">
         <span className="text-4xl">⚠️</span>
-        <p className="text-lg font-bold">{loadError}</p>
+        <p className="max-w-md text-center text-lg font-bold">{loadError}</p>
         <button
           type="button"
           onClick={() => void loadAll(true)}

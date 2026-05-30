@@ -1,18 +1,35 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { AdminDashboard } from "@/components/AdminDashboard";
 import { AdminLangToggle } from "@/components/AdminLangToggle";
 import { ShopLogo } from "@/components/ShopLogo";
 import { adminLabels, ta } from "@/lib/admin-i18n";
+import { ADMIN_SESSION_EVENT } from "@/lib/constants";
 import { useLang } from "@/context/LangContext";
 import { getAdminPinSession, setAdminPinSession } from "@/lib/session";
 
+function subscribeAdminSession(onChange: () => void) {
+  window.addEventListener(ADMIN_SESSION_EVENT, onChange);
+  return () => window.removeEventListener(ADMIN_SESSION_EVENT, onChange);
+}
+
+function readAdminAuthenticated(): boolean {
+  return Boolean(getAdminPinSession());
+}
+
 export function AdminGate() {
   const { lang } = useLang();
-  const [authenticated, setAuthenticated] = useState(
-    () => typeof window !== "undefined" && Boolean(getAdminPinSession())
+  const authenticated = useSyncExternalStore(
+    subscribeAdminSession,
+    readAdminAuthenticated,
+    () => false
+  );
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
   );
   const [submitting, setSubmitting] = useState(false);
   const [pin, setPin] = useState("");
@@ -38,7 +55,6 @@ export function AdminGate() {
 
       if (res.ok) {
         setAdminPinSession(value);
-        setAuthenticated(true);
       } else if (res.status === 401) {
         setErrorMsg(ta(lang, "Wrong PIN", "తప్పు PIN"));
         setPin("");
@@ -58,6 +74,14 @@ export function AdminGate() {
     setErrorMsg(null);
     if (digits.length === 6) void handleLogin(digits);
   };
+
+  if (!mounted) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#fff8f0]">
+        <p className="text-lg font-bold text-gray-500">...</p>
+      </div>
+    );
+  }
 
   if (!authenticated) {
     return (

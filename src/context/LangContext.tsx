@@ -4,10 +4,12 @@ import {
   createContext,
   useCallback,
   useContext,
-  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import type { Lang } from "@/lib/types";
+
+const LANG_EVENT = "ravali-lang-change";
 
 interface LangContextValue {
   lang: Lang;
@@ -17,21 +19,28 @@ interface LangContextValue {
 
 const LangContext = createContext<LangContextValue | null>(null);
 
+function readLang(): Lang {
+  if (typeof window === "undefined") return "te";
+  const saved = localStorage.getItem("ravali-lang");
+  return saved === "en" || saved === "te" ? saved : "te";
+}
+
+function subscribeLang(onChange: () => void) {
+  window.addEventListener(LANG_EVENT, onChange);
+  return () => window.removeEventListener(LANG_EVENT, onChange);
+}
+
 export function LangProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(() => {
-    if (typeof window === "undefined") return "te";
-    const saved = localStorage.getItem("ravali-lang") as Lang | null;
-    return saved === "en" || saved === "te" ? saved : "te";
-  });
+  const lang = useSyncExternalStore(subscribeLang, readLang, () => "te" as Lang);
 
   const setLang = useCallback((l: Lang) => {
-    setLangState(l);
     localStorage.setItem("ravali-lang", l);
+    window.dispatchEvent(new Event(LANG_EVENT));
   }, []);
 
   const toggleLang = useCallback(() => {
-    setLang(lang === "te" ? "en" : "te");
-  }, [lang, setLang]);
+    setLang(readLang() === "te" ? "en" : "te");
+  }, [setLang]);
 
   return (
     <LangContext.Provider value={{ lang, setLang, toggleLang }}>
