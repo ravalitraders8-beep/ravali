@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   BarChart,
   Bar,
@@ -27,11 +27,12 @@ import { clearAdminPinSession } from "@/lib/session";
 import { TRANSACTION_REASONS } from "@/lib/types";
 import type { Category, Contractor, RewardLevel, Transaction } from "@/lib/types";
 
-type Tab = "overview" | "contractors" | "amounts" | "leaderboard" | "rewards" | "targets" | "qr";
+type Tab = "overview" | "contractors" | "registry" | "amounts" | "leaderboard" | "rewards" | "targets" | "qr";
 
 const TABS: { key: Tab; icon: string; label: keyof typeof adminLabels }[] = [
   { key: "overview", icon: "📊", label: "overview" },
   { key: "contractors", icon: "👷", label: "contractors" },
+  { key: "registry", icon: "📋", label: "registry" },
   { key: "amounts", icon: "₹", label: "amounts" },
   { key: "leaderboard", icon: "🏆", label: "leaderboard" },
   { key: "rewards", icon: "🎁", label: "rewards" },
@@ -75,6 +76,11 @@ export function AdminDashboard() {
     reasonIdx: 0,
     transaction_date: "",
   });
+  const [editingTxId, setEditingTxId] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [qrCategoryFilter, setQrCategoryFilter] = useState<string>("all");
+  const [qrSearch, setQrSearch] = useState("");
+  const [selectedQrId, setSelectedQrId] = useState<string | null>(null);
   const [qrPreview, setQrPreview] = useState<{
     url: string;
     token: string;
@@ -84,6 +90,96 @@ export function AdminDashboard() {
 
   const contractorName = (c: Contractor) =>
     lang === "te" ? c.name_telugu : c.name_english;
+
+  const categoryName = (cat: Category) =>
+    lang === "te" ? cat.name_telugu : cat.name_english;
+
+  const activeContractors = useMemo(
+    () => contractors.filter((c) => c.is_active),
+    [contractors]
+  );
+
+  const registryList = useMemo(() => {
+    let list = activeContractors;
+    if (categoryFilter !== "all") {
+      list = list.filter((c) => c.category_id === categoryFilter);
+    }
+    return [...list].sort((a, b) =>
+      contractorName(a).localeCompare(contractorName(b))
+    );
+  }, [activeContractors, categoryFilter, lang]);
+
+  const qrContractorList = useMemo(() => {
+    let list = activeContractors;
+    if (qrCategoryFilter !== "all") {
+      list = list.filter((c) => c.category_id === qrCategoryFilter);
+    }
+    const q = qrSearch.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (c) =>
+          c.name_english.toLowerCase().includes(q) ||
+          c.name_telugu.includes(q) ||
+          c.phone.includes(q) ||
+          c.qr_token.toLowerCase().includes(q)
+      );
+    }
+    return [...list].sort((a, b) =>
+      contractorName(a).localeCompare(contractorName(b))
+    );
+  }, [activeContractors, qrCategoryFilter, qrSearch, lang]);
+
+  const resetTxForm = useCallback(() => {
+    setEditingTxId(null);
+    setTxForm({
+      contractor_id: activeContractors[0]?.id ?? "",
+      amount: 5000,
+      reasonIdx: 0,
+      transaction_date: new Date().toISOString().slice(0, 10),
+    });
+  }, [activeContractors]);
+
+  const startEditTx = (tx: Transaction) => {
+    setEditingTxId(tx.id);
+    const idx = TRANSACTION_REASONS.findIndex((r) => r.en === tx.reason_english);
+    setTxForm({
+      contractor_id: tx.contractor_id,
+      amount: Number(tx.amount),
+      reasonIdx: idx >= 0 ? idx : 0,
+      transaction_date: tx.transaction_date.slice(0, 10),
+    });
+    setTab("amounts");
+  };
+
+  const deleteTransaction = async (id: string) => {
+    if (!window.confirm(L("confirmDeleteTx"))) return;
+    const { ok, data } = await adminPostAction({ action: "delete_transaction", id });
+    if (!ok) {
+      showToast(String(data.message ?? data.error ?? L("failed")));
+      return;
+    }
+    showToast(L("deleted"));
+    if (editingTxId === id) resetTxForm();
+    await loadAll(true);
+  };
+
+  const saveTransaction = async () => {
+    const r = TRANSACTION_REASONS[txForm.reasonIdx];
+    const payload = {
+      contractor_id: txForm.contractor_id,
+      amount: txForm.amount,
+      reason_english: r.en,
+      reason_telugu: r.te,
+      transaction_date: txForm.transaction_date,
+    };
+    if (editingTxId) {
+      const ok = await postAction({ action: "update_transaction", id: editingTxId, ...payload });
+      if (ok) resetTxForm();
+    } else {
+      const ok = await postAction({ action: "add_transaction", ...payload });
+      if (ok) resetTxForm();
+    }
+  };
 
   const loadAll = useCallback(async (force = false) => {
     setLoading(true);
@@ -143,7 +239,8 @@ export function AdminDashboard() {
     return true;
   };
 
-  const previewQR = async (c: Contractor) => {
+  const showContractorQr = async (c: Contractor) => {
+    setSelectedQrId(c.id);
     const url = await generateQRImageWithName(
       c.qr_token,
       c.name_english,
@@ -155,6 +252,10 @@ export function AdminDashboard() {
       name: c.name_english,
       subtitle: c.name_telugu,
     });
+  };
+
+  const previewQR = async (c: Contractor) => {
+    await showContractorQr(c);
     setTab("qr");
   };
 
@@ -431,9 +532,99 @@ export function AdminDashboard() {
           </>
         )}
 
+        {tab === "registry" && (
+          <>
+            <Panel title={L("registrationCounts")}>
+              <p className="mb-4 text-center text-2xl font-black text-[#e85d00]">
+                {L("totalRegistered")}: {activeContractors.length}
+              </p>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter("all")}
+                  className={`flex flex-col items-center rounded-2xl border-2 p-4 transition-colors ${
+                    categoryFilter === "all"
+                      ? "border-[#e85d00] bg-orange-50"
+                      : "border-gray-100 bg-gray-50 hover:border-orange-200"
+                  }`}
+                >
+                  <span className="text-3xl">👥</span>
+                  <span className="mt-1 text-2xl font-black text-[#e85d00]">
+                    {activeContractors.length}
+                  </span>
+                  <span className="text-xs font-bold text-gray-600">{L("filterAll")}</span>
+                </button>
+                {categories.map((cat) => {
+                  const count = activeContractors.filter((c) => c.category_id === cat.id).length;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setCategoryFilter(cat.id)}
+                      className={`flex flex-col items-center rounded-2xl border-2 p-4 transition-colors ${
+                        categoryFilter === cat.id
+                          ? "border-[#e85d00] bg-orange-50"
+                          : "border-gray-100 bg-gray-50 hover:border-orange-200"
+                      }`}
+                    >
+                      <span className="text-3xl">{cat.icon}</span>
+                      <span className="mt-1 text-2xl font-black text-[#e85d00]">{count}</span>
+                      <span className="text-center text-xs font-bold text-gray-600">
+                        {categoryName(cat)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </Panel>
+
+            <Panel
+              title={`${L("contractorsByCategory")}${
+                categoryFilter !== "all"
+                  ? (() => {
+                      const cat = categories.find((c) => c.id === categoryFilter);
+                      return cat ? ` — ${categoryName(cat)}` : "";
+                    })()
+                  : ""
+              } (${registryList.length})`}
+            >
+              {registryList.length === 0 ? (
+                <p className="py-8 text-center text-gray-500">{L("noContractors")}</p>
+              ) : (
+                registryList.map((c) => (
+                  <div
+                    key={c.id}
+                    className="mb-3 flex flex-col gap-2 rounded-xl border border-gray-100 bg-gray-50 p-3 sm:flex-row sm:items-center"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-base font-black">{contractorName(c)}</p>
+                      <p className="truncate text-xs text-gray-500">
+                        {c.categories
+                          ? categoryName(c.categories as Category)
+                          : categories.find((cat) => cat.id === c.category_id)?.icon}{" "}
+                        • {c.phone} • {lang === "te" ? c.village_telugu : c.village_english}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {L("date")}: {c.joined_date?.slice(0, 10) ?? "—"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void previewQR(c)}
+                      className="min-h-[44px] shrink-0 rounded-xl bg-white px-4 text-sm font-bold shadow-sm"
+                    >
+                      📱 QR
+                    </button>
+                  </div>
+                ))
+              )}
+            </Panel>
+          </>
+        )}
+
         {tab === "amounts" && (
           <>
-            <Panel title={L("addAmount")}>
+            <Panel title={editingTxId ? L("updateTransaction") : L("addAmount")}>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block text-sm font-bold sm:col-span-2">
                   {L("contractors")}
@@ -488,21 +679,20 @@ export function AdminDashboard() {
                 </label>
                 <button
                   type="button"
-                  onClick={() => {
-                    const r = TRANSACTION_REASONS[txForm.reasonIdx];
-                    postAction({
-                      action: "add_transaction",
-                      contractor_id: txForm.contractor_id,
-                      amount: txForm.amount,
-                      reason_english: r.en,
-                      reason_telugu: r.te,
-                      transaction_date: txForm.transaction_date,
-                    });
-                  }}
+                  onClick={() => void saveTransaction()}
                   className="btn-big sm:col-span-2 rounded-2xl bg-[#e85d00] text-white"
                 >
-                  {L("saveTransaction")}
+                  {editingTxId ? L("updateTransaction") : L("saveTransaction")}
                 </button>
+                {editingTxId && (
+                  <button
+                    type="button"
+                    onClick={resetTxForm}
+                    className="btn-big sm:col-span-2 rounded-2xl border-2 border-gray-300 bg-white text-gray-700"
+                  >
+                    {L("cancelEdit")}
+                  </button>
+                )}
               </div>
             </Panel>
             <Panel title={L("recentTx")}>
@@ -516,15 +706,34 @@ export function AdminDashboard() {
                 return (
                   <div
                     key={tx.id}
-                    className="flex items-center justify-between gap-2 border-b border-gray-100 py-3 text-sm"
+                    className="flex flex-col gap-2 border-b border-gray-100 py-3 sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <span className="min-w-0 truncate font-medium">
-                      {c ? contractorName(c) : "—"} —{" "}
-                      {lang === "te" ? tx.reason_telugu : tx.reason_english}
-                    </span>
-                    <span className="shrink-0 font-black text-green-600">
-                      +{formatINR(Number(tx.amount))}
-                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">
+                        {c ? contractorName(c) : "—"} —{" "}
+                        {lang === "te" ? tx.reason_telugu : tx.reason_english}
+                      </p>
+                      <p className="text-xs text-gray-400">{tx.transaction_date?.slice(0, 10)}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-black text-green-600">
+                        +{formatINR(Number(tx.amount))}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => startEditTx(tx)}
+                        className="min-h-[40px] rounded-xl bg-blue-50 px-3 text-sm font-bold text-blue-700"
+                      >
+                        ✏️ {L("edit")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void deleteTransaction(tx.id)}
+                        className="min-h-[40px] rounded-xl bg-red-50 px-3 text-sm font-bold text-red-700"
+                      >
+                        🗑️ {L("delete")}
+                      </button>
+                    </div>
                   </div>
                 );
               })
@@ -688,48 +897,119 @@ export function AdminDashboard() {
         )}
 
         {tab === "qr" && (
-          <Panel title={L("qrGenerator")}>
-            {qrPreview ? (
-              <div className="text-center">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={qrPreview.url}
-                  alt={`QR ${qrPreview.name}`}
-                  className="mx-auto w-full max-w-sm rounded-2xl shadow-lg"
+          <>
+            <Panel title={L("qrGenerator")}>
+              <p className="mb-4 rounded-xl bg-orange-50 p-3 text-sm font-medium text-orange-900">
+                {L("qrWalkInHint")}
+              </p>
+
+              <label className="block text-sm font-bold">
+                {L("searchContractor")}
+                <input
+                  type="search"
+                  value={qrSearch}
+                  onChange={(e) => setQrSearch(e.target.value)}
+                  placeholder={L("searchContractor")}
+                  className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
                 />
-                <p className="mt-4 text-lg font-black">{qrPreview.name}</p>
-                <p className="text-base text-gray-600">{qrPreview.subtitle}</p>
-                <p className="mt-1 font-mono text-sm text-gray-400">{qrPreview.token}</p>
+              </label>
+
+              <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() =>
-                    void downloadQR(qrPreview.token, qrPreview.name, qrPreview.subtitle)
-                  }
-                  className="btn-big mt-4 rounded-2xl bg-[#e85d00] px-8 text-white"
+                  onClick={() => setQrCategoryFilter("all")}
+                  className={`min-h-[40px] rounded-full px-4 text-sm font-bold transition-colors ${
+                    qrCategoryFilter === "all"
+                      ? "bg-[#e85d00] text-white"
+                      : "bg-gray-100 text-gray-700"
+                  }`}
                 >
-                  ⬇️ {L("download")}
+                  👥 {L("filterAll")} ({activeContractors.length})
                 </button>
+                {categories.map((cat) => {
+                  const count = activeContractors.filter((c) => c.category_id === cat.id).length;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setQrCategoryFilter(cat.id)}
+                      className={`min-h-[40px] rounded-full px-4 text-sm font-bold transition-colors ${
+                        qrCategoryFilter === cat.id
+                          ? "bg-[#e85d00] text-white"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {cat.icon} {categoryName(cat)} ({count})
+                    </button>
+                  );
+                })}
               </div>
-            ) : (
-              <p className="py-12 text-center text-gray-500">{L("selectContractorQr")}</p>
+
+              <div className="mt-4 max-h-64 space-y-2 overflow-y-auto">
+                {qrContractorList.length === 0 ? (
+                  <p className="py-8 text-center text-gray-500">{L("noContractors")}</p>
+                ) : (
+                  qrContractorList.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => void showContractorQr(c)}
+                      className={`flex w-full items-center justify-between gap-3 rounded-xl border-2 p-3 text-left transition-colors ${
+                        selectedQrId === c.id
+                          ? "border-[#e85d00] bg-orange-50"
+                          : "border-gray-100 bg-gray-50 hover:border-orange-200"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-black">{contractorName(c)}</p>
+                        <p className="truncate text-xs text-gray-500">
+                          {c.phone} • {c.qr_token}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-sm font-bold text-[#e85d00]">
+                        📱 {L("showQr")}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </Panel>
+
+            {qrPreview && selectedQrId && (
+              <Panel title={L("showQr")}>
+                <div className="text-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={qrPreview.url}
+                    alt={`QR ${qrPreview.name}`}
+                    className="mx-auto w-full max-w-sm rounded-2xl shadow-lg"
+                  />
+                  <p className="mt-4 text-lg font-black">{qrPreview.name}</p>
+                  <p className="text-base text-gray-600">{qrPreview.subtitle}</p>
+                  <p className="mt-1 font-mono text-sm text-gray-400">{qrPreview.token}</p>
+                  <p className="mt-4 rounded-xl bg-orange-50 px-4 py-3 text-sm font-bold text-[#e85d00]">
+                    {L("scanToOpen")}
+                  </p>
+                </div>
+              </Panel>
             )}
-          </Panel>
+          </>
         )}
       </main>
 
       {/* Mobile bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)] md:hidden">
-        <div className="flex justify-around px-1 py-1">
+        <div className="flex overflow-x-auto px-1 py-1">
           {TABS.map((t) => (
             <button
               key={t.key}
               type="button"
               onClick={() => setTab(t.key)}
-              className={`flex min-h-[56px] min-w-[48px] flex-1 flex-col items-center justify-center gap-0.5 rounded-lg text-xs font-bold ${
+              className={`flex min-h-[56px] min-w-[52px] shrink-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg text-[10px] font-bold ${
                 tab === t.key ? "text-[#e85d00]" : "text-gray-500"
               }`}
             >
-              <span className="text-xl">{t.icon}</span>
+              <span className="text-lg">{t.icon}</span>
               <span className="truncate px-0.5">{L(t.label).split(" ")[0]}</span>
             </button>
           ))}

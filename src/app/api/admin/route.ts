@@ -153,6 +153,51 @@ export async function POST(request: NextRequest) {
       return jsonNoStore(data);
     }
 
+    if (body.action === "update_transaction") {
+      const { id, amount, reason_english, reason_telugu, transaction_date, contractor_id } =
+        body;
+      if (!id) return NextResponse.json({ message: "Transaction id required" }, { status: 400 });
+
+      const dateStr = transaction_date ?? new Date().toISOString().slice(0, 10);
+      const [y, m] = dateStr.split("-");
+      const month_year = `${y}-${m}`;
+
+      const { error } = await supabase
+        .from("transactions")
+        .update({
+          contractor_id,
+          amount,
+          reason_english,
+          reason_telugu,
+          transaction_date: dateStr,
+          month_year,
+        })
+        .eq("id", id);
+
+      if (error) return NextResponse.json({ message: error.message }, { status: 400 });
+      await supabase.from("admin_logs").insert({
+        action: "update_transaction",
+        target_contractor_id: contractor_id,
+        details: `Updated ₹${amount}`,
+      });
+      bustServerCache();
+      return jsonNoStore({ ok: true });
+    }
+
+    if (body.action === "delete_transaction") {
+      const { id } = body;
+      if (!id) return NextResponse.json({ message: "Transaction id required" }, { status: 400 });
+
+      const { error } = await supabase.from("transactions").delete().eq("id", id);
+      if (error) return NextResponse.json({ message: error.message }, { status: 400 });
+      await supabase.from("admin_logs").insert({
+        action: "delete_transaction",
+        details: `Deleted transaction ${id}`,
+      });
+      bustServerCache();
+      return jsonNoStore({ ok: true });
+    }
+
     if (body.action === "deliver_reward") {
       const { contractor_id, reward_level_id, notes } = body;
       const monthYear = getCurrentMonthYear();
