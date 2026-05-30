@@ -20,6 +20,14 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "RAVALI TRADERS — Contractor Recognition",
   description: "Amount-based contractor rewards dashboard powered by Supabase",
+  metadataBase: process.env.NEXT_PUBLIC_APP_URL
+    ? new URL(
+        process.env.NEXT_PUBLIC_APP_URL.startsWith("http")
+          ? process.env.NEXT_PUBLIC_APP_URL
+          : `https://${process.env.NEXT_PUBLIC_APP_URL}`
+      )
+    : undefined,
+  applicationName: "RAVALI TRADERS",
   manifest: "/manifest.json",
   icons: {
     icon: "/logo.png",

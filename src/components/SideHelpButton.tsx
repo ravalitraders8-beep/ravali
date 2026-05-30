@@ -40,13 +40,10 @@ export function SideHelpButton({ bottomOffset = "bottom-24", category }: SideHel
         type="button"
         onClick={() => setOpen(true)}
         aria-label={t(lang, "Help", "సహాయం")}
-        className={`fixed right-0 z-50 flex min-h-[52px] min-w-[52px] flex-col items-center justify-center rounded-l-2xl bg-[#1a2744] py-3 pl-2 pr-1 text-white shadow-lg transition-transform active:scale-95 sm:min-h-[56px] sm:min-w-[56px] ${bottomOffset}`}
+        className={`fixed right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#1a2744] text-2xl font-black text-white shadow-lg active:scale-95 ${bottomOffset}`}
       >
-        <span className="text-xl leading-none sm:text-2xl" aria-hidden>
+        <span className="leading-none" aria-hidden>
           ?
-        </span>
-        <span className="mt-0.5 text-[10px] font-bold leading-tight sm:text-xs">
-          {t(lang, "Help", "సహాయం")}
         </span>
       </button>
 
@@ -65,7 +62,7 @@ export function SideHelpButton({ bottomOffset = "bottom-24", category }: SideHel
             aria-labelledby="about-us-title"
             className="relative flex h-full w-full max-w-md flex-col overflow-hidden bg-[#fff8f0] shadow-2xl"
           >
-            <HelpPanelBackground />
+            <HelpPanelBackground category={category} />
 
             <div className="relative z-10 sticky top-0 bg-[#1a2744] px-4 py-4 text-white">
               <div className="flex items-start justify-between gap-3">
@@ -165,6 +162,14 @@ export function SideHelpButton({ bottomOffset = "bottom-24", category }: SideHel
                 <span aria-hidden>📞</span>
                 {t(lang, labels.contactShop.en, labels.contactShop.te)}
               </a>
+
+              {/* Logo photo at the bottom of help section */}
+              <div className="mt-8 flex flex-col items-center rounded-2xl border-2 border-[#1a2744]/10 bg-white/90 p-5 shadow-sm">
+                <ShopLogo size="lg" />
+                <p className="mt-3 text-center text-sm font-bold text-[#1a2744]">
+                  {t(lang, "Built on Trust. Built to Last.", "నమ్మకంపై నిర్మించాం. నిలకడ కోసం.")}
+                </p>
+              </div>
             </div>
           </aside>
         </div>

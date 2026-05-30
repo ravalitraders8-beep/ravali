@@ -47,14 +47,27 @@ export function useLang() {
 }
 
 export function LangToggle() {
-  const { lang, toggleLang } = useLang();
+  const { lang, setLang } = useLang();
   return (
-    <button
-      type="button"
-      onClick={toggleLang}
-      className="min-h-[44px] rounded-full border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-800 shadow-sm"
-    >
-      {lang === "te" ? "English" : "తెలుగు"}
-    </button>
+    <div className="flex overflow-hidden rounded-full border-2 border-[#1a2744]/20 bg-white shadow-sm">
+      <button
+        type="button"
+        onClick={() => setLang("te")}
+        className={`min-h-[44px] px-4 text-sm font-black ${
+          lang === "te" ? "bg-[#1a2744] text-white" : "text-[#1a2744]"
+        }`}
+      >
+        తెలుగు
+      </button>
+      <button
+        type="button"
+        onClick={() => setLang("en")}
+        className={`min-h-[44px] px-4 text-sm font-black ${
+          lang === "en" ? "bg-[#1a2744] text-white" : "text-[#1a2744]"
+        }`}
+      >
+        EN
+      </button>
+    </div>
   );
 }

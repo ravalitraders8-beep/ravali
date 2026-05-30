@@ -19,48 +19,58 @@ export function GiftsSection({
   const { lang } = useLang();
 
   return (
-    <div className="card-visual bg-white p-5">
-      <div className="mb-5 flex items-center justify-center gap-2">
-        <span className="text-3xl">🎁</span>
-        <h2 className="text-2xl font-black text-gray-900">
+    <div className="user-card bg-white">
+      <div className="mb-4 flex items-center gap-3">
+        <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-100 text-3xl">
+          🎁
+        </span>
+        <h2 className="text-xl font-black text-[#1a2744]">
           {t(lang, labels.gifts.en, labels.gifts.te)}
         </h2>
       </div>
 
       {rewardLevels.length === 0 ? (
-        <p className="py-8 text-center text-lg text-gray-500">
-          {t(lang, "No gifts set up yet", "ఇంకా బహుమతులు లేవు")}
+        <p className="py-6 text-center text-base text-gray-500">
+          {t(lang, "No gifts yet", "ఇంకా బహుమతులు లేవు")}
         </p>
       ) : (
-      <div className="grid grid-cols-2 gap-4">
-        {rewardLevels.map((gift) => {
-          const unlocked = monthlyAmount >= gift.min_amount;
-          const isCurrent = currentLevel?.id === gift.id;
-          return (
-            <div
-              key={gift.id}
-              className={`relative rounded-2xl p-5 text-center ${
-                unlocked
-                  ? "border-4 border-[#e85d00] bg-orange-50"
-                  : "border-2 border-gray-200 bg-gray-100 opacity-70"
-              } ${isCurrent ? "ring-4 ring-yellow-400" : ""}`}
-            >
-              {!unlocked && (
-                <span className="absolute right-3 top-3 text-2xl">🔒</span>
-              )}
-              <span className={`text-5xl ${unlocked ? "" : "grayscale"}`}>
-                {gift.icon}
-              </span>
-              <p className="mt-3 text-lg font-black">
-                {lang === "te" ? gift.level_name_telugu : gift.level_name_english}
-              </p>
-              <p className="mt-1 text-base font-bold text-[#e85d00]">
-                {formatINR(gift.min_amount)}+
-              </p>
-            </div>
-          );
-        })}
-      </div>
+        <div className="space-y-3">
+          {rewardLevels.map((gift) => {
+            const unlocked = monthlyAmount >= gift.min_amount;
+            const isCurrent = currentLevel?.id === gift.id;
+            return (
+              <div
+                key={gift.id}
+                className={`flex items-center gap-4 rounded-2xl p-4 ${
+                  unlocked
+                    ? "border-2 border-[#e85d00] bg-orange-50"
+                    : "border border-gray-200 bg-gray-50 opacity-80"
+                } ${isCurrent ? "ring-2 ring-yellow-400 ring-offset-2" : ""}`}
+              >
+                <span
+                  className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-3xl ${
+                    unlocked ? "bg-white" : "bg-gray-200 grayscale"
+                  }`}
+                >
+                  {unlocked ? gift.icon : "🔒"}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-lg font-black text-[#1a2744]">
+                    {lang === "te" ? gift.level_name_telugu : gift.level_name_english}
+                  </p>
+                  <p className="text-base font-bold text-[#e85d00]">
+                    {formatINR(gift.min_amount)}+
+                  </p>
+                </div>
+                {unlocked && (
+                  <span className="text-2xl" aria-hidden>
+                    ✅
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

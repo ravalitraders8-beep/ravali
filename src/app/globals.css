@@ -17,6 +17,17 @@
   --font-sans: var(--font-noto-telugu), "Noto Sans Telugu", system-ui, sans-serif;
 }
 
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 * {
   -webkit-tap-highlight-color: transparent;
 }
@@ -52,6 +63,13 @@ select {
 .card-visual {
   border-radius: 1.5rem;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+/* Clean user portal cards */
+.user-card {
+  border-radius: 1.25rem;
+  padding: 1.25rem;
+  box-shadow: 0 2px 12px rgba(26, 39, 68, 0.08);
 }
 
 .icon-huge {
