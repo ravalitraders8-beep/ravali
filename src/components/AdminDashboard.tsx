@@ -376,7 +376,7 @@ export function AdminDashboard() {
   }));
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] pb-24 md:pb-8">
+    <div className="min-h-screen bg-[#f5f5f5] pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-8">
       {toast && (
         <div className="fixed bottom-20 left-1/2 z-[60] -translate-x-1/2 rounded-2xl bg-gray-900 px-5 py-3 text-sm font-bold text-white shadow-xl md:bottom-6">
           {toast}
@@ -1174,8 +1174,8 @@ export function AdminDashboard() {
       </main>
 
       {/* Mobile bottom nav — 4 main tabs only */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)] md:hidden">
-        <div className="grid grid-cols-4 gap-0 px-2 py-1.5">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] shadow-[0_-4px_20px_rgba(0,0,0,0.08)] md:hidden">
+        <div className="grid grid-cols-4 gap-0 px-2 pb-1 pt-1.5">
           {MOBILE_MAIN_TABS.map((t) => {
             const shortKey = MOBILE_NAV_SHORT[t.key];
             const label = shortKey ? L(shortKey) : L(t.label).split(" ")[0];
@@ -1184,7 +1184,7 @@ export function AdminDashboard() {
                 key={t.key}
                 type="button"
                 onClick={() => goToTab(t.key)}
-                className={`flex min-h-[54px] flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-bold leading-none ${
+                className={`flex min-h-[52px] flex-col items-center justify-center gap-1.5 rounded-xl px-1 pb-0.5 pt-1 text-[11px] font-bold leading-tight ${
                   tab === t.key ? "bg-orange-50 text-[#e85d00]" : "text-gray-600"
                 }`}
               >
