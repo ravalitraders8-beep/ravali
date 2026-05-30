@@ -1,6 +1,6 @@
 import { jsonWithCache } from "@/lib/cache-headers";
-import { getSupabaseUrl, isSupabaseConfigured } from "@/lib/env";
-import { friendlySupabaseError } from "@/lib/server/leaderboard-fallback";
+import { getSupabaseProjectRef, getSupabaseUrl, isSupabaseConfigured } from "@/lib/env";
+import { pingSupabaseRest } from "@/lib/server/supabase-connect";
 
 export async function GET() {
   if (!isSupabaseConfigured()) {
@@ -21,6 +21,21 @@ export async function GET() {
     );
   }
 
+  const ping = await pingSupabaseRest();
+  const projectRef = getSupabaseProjectRef();
+
+  if (!ping.ok) {
+    return jsonWithCache(
+      {
+        connected: false,
+        projectRef,
+        message: ping.message,
+        hint: "Vercel → Settings → Environment Variables — paste exact values from Supabase → Settings → API, then redeploy.",
+      },
+      "public"
+    );
+  }
+
   try {
     const { getAdminClient } = await import("@/lib/supabase/admin");
     const supabase = getAdminClient();
@@ -32,6 +47,7 @@ export async function GET() {
       return jsonWithCache(
         {
           connected: false,
+          projectRef,
           message: error.message,
           hint: "Run supabase/migrations/001_schema.sql in your Supabase SQL Editor",
         },
@@ -42,6 +58,7 @@ export async function GET() {
     return jsonWithCache(
       {
         connected: true,
+        projectRef,
         url: getSupabaseUrl().replace(/https:\/\/([^.]+).*/, "https://$1.supabase.co"),
         categoriesCount: count ?? 0,
         message: count
@@ -51,12 +68,11 @@ export async function GET() {
       "public"
     );
   } catch (e) {
-    const message = friendlySupabaseError(e instanceof Error ? e.message : "Connection failed");
     return jsonWithCache(
       {
         connected: false,
-        message,
-        hint: "Check Vercel env vars (no spaces/newlines). Unpause project at supabase.com. Run migrations.",
+        projectRef,
+        message: e instanceof Error ? e.message : "Connection failed",
       },
       "public"
     );

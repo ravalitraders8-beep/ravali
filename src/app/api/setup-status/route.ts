@@ -1,27 +1,24 @@
 import { jsonWithCache } from "@/lib/cache-headers";
-import { getAdminPin, getSupabaseAnonKey, getSupabaseUrl, isSupabaseConfigured } from "@/lib/env";
-import { friendlySupabaseError } from "@/lib/server/leaderboard-fallback";
+import {
+  getAdminPin,
+  getSupabaseAnonKey,
+  getSupabaseProjectRef,
+  getSupabaseUrl,
+  isSupabaseConfigured,
+} from "@/lib/env";
+import { pingSupabaseRest } from "@/lib/server/supabase-connect";
 
 export async function GET() {
   const hasPin = Boolean(getAdminPin());
   const hasSupabase = isSupabaseConfigured();
+  const projectRef = getSupabaseProjectRef();
   let connected = false;
   let connectionMessage = "";
 
   if (hasSupabase) {
-    try {
-      const { getAdminClient } = await import("@/lib/supabase/admin");
-      const supabase = getAdminClient();
-      const { error } = await supabase
-        .from("categories")
-        .select("id", { count: "exact", head: true });
-      connected = !error;
-      connectionMessage = error ? friendlySupabaseError(error.message) : "Connected";
-    } catch (e) {
-      connectionMessage = friendlySupabaseError(
-        e instanceof Error ? e.message : "Connection failed"
-      );
-    }
+    const ping = await pingSupabaseRest();
+    connected = ping.ok;
+    connectionMessage = ping.message;
   }
 
   const ready = hasPin && hasSupabase && connected;
@@ -32,6 +29,7 @@ export async function GET() {
       hasPin,
       hasSupabase,
       connected,
+      projectRef,
       hasUrl: Boolean(getSupabaseUrl()),
       hasAnonKey: Boolean(getSupabaseAnonKey()),
       message: !hasPin

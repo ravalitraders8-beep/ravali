@@ -1,4 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { friendlySupabaseError, isSupabaseConnectionError } from "@/lib/server/supabase-connect";
+
+export { friendlySupabaseError, isSupabaseConnectionError };
 
 /** Compute leaderboard in JS when RPC is missing or fails */
 export async function fetchLeaderboardFallback(
@@ -45,22 +48,4 @@ export async function fetchLeaderboardFallback(
 
   entries.sort((a, b) => b.total_amount - a.total_amount);
   return entries.map((e, i) => ({ rank: i + 1, ...e }));
-}
-
-export function isSupabaseConnectionError(message: string): boolean {
-  const lower = message.toLowerCase();
-  return (
-    lower.includes("fetch failed") ||
-    lower.includes("network") ||
-    lower.includes("econnrefused") ||
-    lower.includes("enotfound") ||
-    lower.includes("timeout")
-  );
-}
-
-export function friendlySupabaseError(message: string): string {
-  if (isSupabaseConnectionError(message)) {
-    return "Cannot reach Supabase. Check Vercel env vars (no extra spaces), unpause your project at supabase.com, and run SQL migrations.";
-  }
-  return message;
 }

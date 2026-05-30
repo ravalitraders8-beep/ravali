@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { jsonNoStore, jsonWithCache } from "@/lib/cache-headers";
 import { getAdminPin, isSupabaseConfigured } from "@/lib/env";
 import { getAdminData, getAdminStats } from "@/lib/server/admin-data";
-import { friendlySupabaseError } from "@/lib/server/leaderboard-fallback";
+import { friendlySupabaseError, extractErrorCause } from "@/lib/server/supabase-connect";
 import { bustServerCache } from "@/lib/server/cache-sync";
 
 function verifyPin(request: NextRequest): boolean {
@@ -35,7 +35,10 @@ export async function GET(request: NextRequest) {
     const result = await getAdminStats();
     return jsonWithCache(result, "private-short");
   } catch (e) {
-    const message = friendlySupabaseError(e instanceof Error ? e.message : "Failed to load stats");
+    const message = friendlySupabaseError(
+      e instanceof Error ? e.message : "Failed to load stats",
+      extractErrorCause(e)
+    );
     return NextResponse.json({ error: "server_error", message }, { status: 503 });
   }
 }
@@ -195,7 +198,8 @@ export async function PATCH(request: NextRequest) {
     return jsonWithCache(data, "private-short");
   } catch (e) {
     const message = friendlySupabaseError(
-      e instanceof Error ? e.message : "Failed to load admin data"
+      e instanceof Error ? e.message : "Failed to load admin data",
+      extractErrorCause(e)
     );
     return NextResponse.json({ error: "server_error", message }, { status: 503 });
   }

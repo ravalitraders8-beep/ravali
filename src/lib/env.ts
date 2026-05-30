@@ -26,6 +26,13 @@ export function getSupabaseUrl(): string {
   return readEnv("NEXT_PUBLIC_SUPABASE_URL", "VITE_SUPABASE_URL") ?? "";
 }
 
+/** Project ref from URL, e.g. svbffiioxwxdbyvmaxbj */
+export function getSupabaseProjectRef(): string | null {
+  const url = getSupabaseUrl();
+  const match = url.match(/https?:\/\/([a-z0-9]+)\.supabase\.co/i);
+  return match?.[1] ?? null;
+}
+
 export function getSupabaseAnonKey(): string {
   return readEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "VITE_SUPABASE_ANON_KEY") ?? "";
 }
