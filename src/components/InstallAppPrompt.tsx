@@ -32,7 +32,7 @@ function subscribeInstallPrompt(onChange: () => void) {
 }
 
 /** Fixed bar — Chrome install when prompt is ready (backup if modal dismissed) */
-export function PwaInstallBar() {
+export function PwaInstallBar({ className }: { className?: string }) {
   const { lang } = useLang();
   const { installed, canInstall, isAndroid } = usePWAInstall();
   const [installing, setInstalling] = useState(false);
@@ -49,7 +49,12 @@ export function PwaInstallBar() {
   };
 
   return (
-    <div className="fixed bottom-[4.25rem] left-0 right-0 z-40 px-3">
+    <div
+      className={
+        className ??
+        "fixed bottom-[4.25rem] left-0 right-0 z-40 px-3"
+      }
+    >
       <button
         type="button"
         onClick={() => void handleInstall()}

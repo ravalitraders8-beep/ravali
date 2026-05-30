@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useSyncExternalStore } from "react";
+import { useState, useCallback, useSyncExternalStore, useEffect } from "react";
 import Link from "next/link";
 import { AdminDashboard } from "@/components/AdminDashboard";
 import { AdminLangToggle } from "@/components/AdminLangToggle";
@@ -8,7 +8,8 @@ import { ShopLogo } from "@/components/ShopLogo";
 import { adminLabels, ta } from "@/lib/admin-i18n";
 import { ADMIN_SESSION_EVENT } from "@/lib/constants";
 import { useLang } from "@/context/LangContext";
-import { getAdminPinSession, setAdminPinSession } from "@/lib/session";
+import { getAdminPinSession, markInstallPromptForSession, setAdminPinSession } from "@/lib/session";
+import { InstallAppPrompt, PwaInstallBar } from "@/components/InstallAppPrompt";
 
 function subscribeAdminSession(onChange: () => void) {
   window.addEventListener(ADMIN_SESSION_EVENT, onChange);
@@ -55,6 +56,7 @@ export function AdminGate() {
 
       if (res.ok) {
         setAdminPinSession(value);
+        markInstallPromptForSession();
       } else if (res.status === 401) {
         setErrorMsg(ta(lang, "Wrong PIN", "తప్పు PIN"));
         setPin("");
@@ -74,6 +76,10 @@ export function AdminGate() {
     setErrorMsg(null);
     if (digits.length === 6) void handleLogin(digits);
   };
+
+  useEffect(() => {
+    if (authenticated) markInstallPromptForSession();
+  }, [authenticated]);
 
   if (!mounted) {
     return (
@@ -149,5 +155,11 @@ export function AdminGate() {
     );
   }
 
-  return <AdminDashboard />;
+  return (
+    <>
+      <AdminDashboard />
+      <InstallAppPrompt />
+      <PwaInstallBar className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-40 px-3 md:hidden" />
+    </>
+  );
 }
