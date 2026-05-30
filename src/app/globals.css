@@ -1,26 +1,87 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fff8f0;
+  --foreground: #1a1a1a;
+  --primary: #e85d00;
+  --primary-dark: #c44d00;
+  --success: #15803d;
+  --surface: #ffffff;
+  --muted: #6b7280;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-primary: var(--primary);
+  --font-sans: var(--font-noto-telugu), "Noto Sans Telugu", system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  font-size: 17px;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+button,
+a,
+input,
+select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* Large touch targets for low-literacy users */
+.btn-big {
+  min-height: 56px;
+  min-width: 56px;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.card-visual {
+  border-radius: 1.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+.icon-huge {
+  font-size: 4rem;
+  line-height: 1;
+}
+
+.icon-xl {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+#qr-reader video {
+  border-radius: 1.25rem;
+}
+
+#qr-reader__scan_region {
+  min-height: 280px;
+}
+
+#qr-reader__dashboard_section_csr span,
+#qr-reader__dashboard_section_swaplink {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

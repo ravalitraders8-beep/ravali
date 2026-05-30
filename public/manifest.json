@@ -1,0 +1,19 @@
+{
+  "name": "RAVALI TRADERS",
+  "short_name": "RAVALI",
+  "description": "కాంట్రాక్టర్ బహుమతుల డాష్‌బోర్డ్",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff8f0",
+  "theme_color": "#e85d00",
+  "orientation": "portrait",
+  "lang": "te",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
