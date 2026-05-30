@@ -1,5 +1,7 @@
 export const SHOP_NAME = "RAVALI TRADERS";
 export const LOGO_PATH = "/logo.png";
+/** Transparent logo for dark headers — no white box */
+export const LOGO_MARK_PATH = "/logo-mark.png";
 /** Full English marketing logo — help panel background (English) */
 export const LOGO_EN_PATH = "/logo-en.png";
 /** Full Telugu marketing logo — help panel background (Telugu) */

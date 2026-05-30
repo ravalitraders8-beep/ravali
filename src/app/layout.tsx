@@ -55,7 +55,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="te" className={`${notoTelugu.variable} ${inter.variable} h-full`}>
+    <html lang="te" className={`${notoTelugu.variable} ${inter.variable} h-full bg-white`}>
       <head>
         <Script id="ravali-pwa-capture" strategy="beforeInteractive">
           {PWA_CAPTURE_SCRIPT}

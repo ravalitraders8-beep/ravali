@@ -98,7 +98,7 @@ export function QRScanner() {
 
       <header className="relative z-10 bg-[#1a2744] px-4 pb-6 pt-3 text-center">
         <MobileHeaderLangToggle />
-        <ShopLogo size="lg" priority />
+        <ShopLogo size="lg" priority onDark />
       </header>
 
       <main className="relative z-10 mx-auto w-full max-w-lg flex-1 px-4 py-5">

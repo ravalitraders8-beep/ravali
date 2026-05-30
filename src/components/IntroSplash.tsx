@@ -11,7 +11,7 @@ export function IntroSplash() {
   const { lang } = useLang();
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6">
+    <div className="fixed inset-0 z-[9999] flex min-h-[100dvh] flex-col items-center justify-center bg-white px-6">
       <div className="intro-logo-wrap flex flex-col items-center">
         <Image
           src={LOGO_PATH}

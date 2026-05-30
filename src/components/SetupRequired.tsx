@@ -10,7 +10,7 @@ export function SetupRequired() {
   const { lang } = useLang();
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#fff8f0] p-6 text-center">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-white p-6 text-center">
       <ShopLogo size="lg" priority />
       <p className="mt-6 text-xl font-bold text-gray-800">
         {t(lang, labels.setupTitle.en, labels.setupTitle.te)}

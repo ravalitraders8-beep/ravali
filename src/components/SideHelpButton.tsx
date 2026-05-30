@@ -62,7 +62,7 @@ export function SideHelpButton({ bottomOffset = "bottom-24", category }: SideHel
             role="dialog"
             aria-modal="true"
             aria-labelledby="about-us-title"
-            className="relative flex h-full w-full max-w-md flex-col overflow-hidden bg-[#fff8f0] shadow-2xl"
+            className="relative flex h-full w-full max-w-md flex-col overflow-hidden bg-white shadow-2xl"
           >
             <HelpPanelBackground category={category} />
 

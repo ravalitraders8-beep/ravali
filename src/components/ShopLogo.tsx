@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { LOGO_PATH, SHOP_NAME } from "@/lib/constants";
+import { LOGO_MARK_PATH, LOGO_PATH, SHOP_NAME } from "@/lib/constants";
 
 const SIZES = {
   sm: { width: 120, height: 60, className: "h-10 w-auto sm:h-11" },
@@ -12,19 +12,26 @@ type ShopLogoProps = {
   size?: keyof typeof SIZES;
   className?: string;
   priority?: boolean;
+  /** Use on navy/dark headers — transparent logo, no white box */
+  onDark?: boolean;
 };
 
-export function ShopLogo({ size = "md", className = "", priority = false }: ShopLogoProps) {
+export function ShopLogo({
+  size = "md",
+  className = "",
+  priority = false,
+  onDark = false,
+}: ShopLogoProps) {
   const s = SIZES[size];
 
   return (
     <Image
-      src={LOGO_PATH}
+      src={onDark ? LOGO_MARK_PATH : LOGO_PATH}
       alt={SHOP_NAME}
       width={s.width}
       height={s.height}
       priority={priority}
-      className={`object-contain ${s.className} ${className}`}
+      className={`object-contain ${onDark ? "" : "bg-white"} ${s.className} ${className}`}
     />
   );
 }

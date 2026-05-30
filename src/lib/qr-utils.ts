@@ -118,7 +118,7 @@ export async function generateQRImageWithName(
   const ctx = canvas.getContext("2d");
   if (!ctx) return qrDataUrl;
 
-  ctx.fillStyle = "#fff8f0";
+  ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, w, h);
 
   // Card border

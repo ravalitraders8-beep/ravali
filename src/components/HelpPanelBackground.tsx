@@ -51,7 +51,7 @@ export function HelpPanelBackground({ category }: HelpPanelBackgroundProps) {
         </div>
       )}
 
-      <div className="absolute inset-0 bg-gradient-to-b from-[#fff8f0]/45 via-[#fff8f0]/62 to-[#fff8f0]/78" />
+      <div className="absolute inset-0 bg-gradient-to-b from-white/45 via-white/62 to-white/78" />
     </div>
   );
 }

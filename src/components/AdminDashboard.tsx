@@ -40,12 +40,20 @@ const TABS: { key: Tab; icon: string; label: keyof typeof adminLabels }[] = [
   { key: "qr", icon: "📱", label: "qr" },
 ];
 
+/** Bottom bar on mobile — 4 main tabs + Menu for the rest */
+const MOBILE_MAIN_TAB_KEYS: Tab[] = ["overview", "amounts", "contractors", "qr"];
+const MOBILE_MENU_TAB_KEYS: Tab[] = ["registry", "leaderboard", "rewards", "targets"];
+
+const MOBILE_MAIN_TABS = MOBILE_MAIN_TAB_KEYS.map((key) => TABS.find((t) => t.key === key)!);
+const MOBILE_MENU_TABS = MOBILE_MENU_TAB_KEYS.map((key) => TABS.find((t) => t.key === key)!);
+
 export function AdminDashboard() {
   const { lang } = useLang();
   const L = (key: keyof typeof adminLabels) =>
     ta(lang, adminLabels[key].en, adminLabels[key].te);
 
   const [tab, setTab] = useState<Tab>("overview");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [stats, setStats] = useState<{
     totalActive: number;
@@ -77,10 +85,12 @@ export function AdminDashboard() {
     transaction_date: "",
   });
   const [editingTxId, setEditingTxId] = useState<string | null>(null);
+  const [txCategoryId, setTxCategoryId] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [qrCategoryFilter, setQrCategoryFilter] = useState<string>("all");
   const [qrSearch, setQrSearch] = useState("");
   const [selectedQrId, setSelectedQrId] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
   const [qrPreview, setQrPreview] = useState<{
     url: string;
     token: string;
@@ -129,19 +139,33 @@ export function AdminDashboard() {
     );
   }, [activeContractors, qrCategoryFilter, qrSearch, lang]);
 
+  const txContractors = useMemo(() => {
+    if (!txCategoryId) return activeContractors;
+    return activeContractors.filter((c) => c.category_id === txCategoryId);
+  }, [activeContractors, txCategoryId]);
+
   const resetTxForm = useCallback(() => {
     setEditingTxId(null);
+    const defaultCat =
+      categories.find((cat) => activeContractors.some((c) => c.category_id === cat.id))?.id ??
+      categories[0]?.id ??
+      "";
+    const filtered = activeContractors.filter((c) => c.category_id === defaultCat);
+    setTxCategoryId(defaultCat);
     setTxForm({
-      contractor_id: activeContractors[0]?.id ?? "",
+      contractor_id: filtered[0]?.id ?? activeContractors[0]?.id ?? "",
       amount: 5000,
       reasonIdx: 0,
       transaction_date: new Date().toISOString().slice(0, 10),
     });
-  }, [activeContractors]);
+  }, [activeContractors, categories]);
 
   const startEditTx = (tx: Transaction) => {
     setEditingTxId(tx.id);
     const idx = TRANSACTION_REASONS.findIndex((r) => r.en === tx.reason_english);
+    const contractor = contractors.find((c) => c.id === tx.contractor_id);
+    const catId = contractor?.category_id ?? categories[0]?.id ?? "";
+    setTxCategoryId(catId);
     setTxForm({
       contractor_id: tx.contractor_id,
       amount: Number(tx.amount),
@@ -149,6 +173,17 @@ export function AdminDashboard() {
       transaction_date: tx.transaction_date.slice(0, 10),
     });
     setTab("amounts");
+  };
+
+  const handleTxCategoryChange = (categoryId: string) => {
+    setTxCategoryId(categoryId);
+    const filtered = activeContractors.filter((c) => c.category_id === categoryId);
+    setTxForm((p) => ({
+      ...p,
+      contractor_id: filtered.some((c) => c.id === p.contractor_id)
+        ? p.contractor_id
+        : (filtered[0]?.id ?? ""),
+    }));
   };
 
   const deleteTransaction = async (id: string) => {
@@ -164,6 +199,10 @@ export function AdminDashboard() {
   };
 
   const saveTransaction = async () => {
+    if (!txForm.contractor_id) {
+      showToast(L("noContractorsInCategory"));
+      return;
+    }
     const r = TRANSACTION_REASONS[txForm.reasonIdx];
     const payload = {
       contractor_id: txForm.contractor_id,
@@ -194,11 +233,28 @@ export function AdminDashboard() {
       setTransactions((data.transactions as Transaction[]) ?? []);
       setRewards((data.rewards as Array<Record<string, unknown>>) ?? []);
       setNewContractor((p) => ({ ...p, category_id: p.category_id || cats[0]?.id || "" }));
-      setTxForm((p) => ({
-        ...p,
-        contractor_id: p.contractor_id || (data.contractors as Contractor[])?.[0]?.id || "",
-        transaction_date: p.transaction_date || new Date().toISOString().slice(0, 10),
-      }));
+      const active = ((data.contractors as Contractor[]) ?? []).filter((c) => c.is_active);
+      const defaultCat =
+        cats.find((cat) => active.some((c) => c.category_id === cat.id))?.id ?? cats[0]?.id ?? "";
+      setTxCategoryId((prev) =>
+        prev && active.some((c) => c.category_id === prev) ? prev : defaultCat
+      );
+      setTxForm((p) => {
+        const catId =
+          p.contractor_id &&
+          active.find((c) => c.id === p.contractor_id)?.category_id
+            ? active.find((c) => c.id === p.contractor_id)!.category_id
+            : defaultCat;
+        const filtered = active.filter((c) => c.category_id === catId);
+        return {
+          ...p,
+          contractor_id:
+            p.contractor_id && active.some((c) => c.id === p.contractor_id)
+              ? p.contractor_id
+              : (filtered[0]?.id ?? active[0]?.id ?? ""),
+          transaction_date: p.transaction_date || new Date().toISOString().slice(0, 10),
+        };
+      });
     } catch (err) {
       const body = err as { status?: number; message?: string };
       if (body.status === 401) {
@@ -241,17 +297,29 @@ export function AdminDashboard() {
 
   const showContractorQr = async (c: Contractor) => {
     setSelectedQrId(c.id);
-    const url = await generateQRImageWithName(
-      c.qr_token,
-      c.name_english,
-      c.name_telugu
-    );
-    setQrPreview({
-      url,
-      token: c.qr_token,
-      name: c.name_english,
-      subtitle: c.name_telugu,
-    });
+    setQrLoading(true);
+    setQrPreview(null);
+    try {
+      const url = await generateQRImageWithName(
+        c.qr_token,
+        c.name_english,
+        c.name_telugu
+      );
+      setQrPreview({
+        url,
+        token: c.qr_token,
+        name: c.name_english,
+        subtitle: c.name_telugu,
+      });
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  const closeQrFullscreen = () => {
+    setQrPreview(null);
+    setSelectedQrId(null);
+    setQrLoading(false);
   };
 
   const previewQR = async (c: Contractor) => {
@@ -263,6 +331,13 @@ export function AdminDashboard() {
     clearAdminPinSession();
     window.location.href = "/";
   };
+
+  const goToTab = (key: Tab) => {
+    setTab(key);
+    setMobileMenuOpen(false);
+  };
+
+  const mobileMenuActive = MOBILE_MENU_TAB_KEYS.includes(tab);
 
   if (loading && !stats) {
     return (
@@ -305,11 +380,59 @@ export function AdminDashboard() {
         </div>
       )}
 
+      {(qrLoading || qrPreview) && selectedQrId && (
+        <div className="fixed inset-0 z-[100] flex flex-col bg-white">
+          <header className="flex shrink-0 items-center gap-3 bg-[#1a2744] px-4 py-3 text-white shadow-lg">
+            <button
+              type="button"
+              onClick={closeQrFullscreen}
+              className="flex min-h-[44px] items-center gap-2 rounded-xl bg-white/15 px-4 text-sm font-bold"
+            >
+              ← {L("back")}
+            </button>
+            <p className="min-w-0 flex-1 truncate text-base font-black">
+              {qrPreview?.name ?? contractors.find((c) => c.id === selectedQrId)?.name_english}
+            </p>
+          </header>
+
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 overflow-y-auto p-4 pb-8">
+            {qrLoading ? (
+              <LoadingSpinner message={L("loading")} />
+            ) : qrPreview ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={qrPreview.url}
+                  alt={`QR ${qrPreview.name}`}
+                  className="w-full max-w-lg rounded-2xl shadow-2xl"
+                />
+                <p className="text-xl font-black text-gray-900">{qrPreview.name}</p>
+                <p className="text-lg text-gray-600">{qrPreview.subtitle}</p>
+                <p className="font-mono text-sm text-gray-400">{qrPreview.token}</p>
+                <p className="max-w-md rounded-2xl bg-orange-100 px-6 py-4 text-center text-base font-bold text-[#e85d00]">
+                  {L("scanToOpen")}
+                </p>
+              </>
+            ) : null}
+          </div>
+
+          <div className="shrink-0 border-t border-orange-200 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <button
+              type="button"
+              onClick={closeQrFullscreen}
+              className="btn-big w-full rounded-2xl bg-[#1a2744] text-white"
+            >
+              ← {L("back")}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[#1a2744] text-white shadow-lg">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
-            <ShopLogo size="sm" />
+            <ShopLogo size="sm" onDark />
             <h1 className="truncate text-base font-black sm:text-lg">{L("admin")}</h1>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -627,17 +750,36 @@ export function AdminDashboard() {
             <Panel title={editingTxId ? L("updateTransaction") : L("addAmount")}>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block text-sm font-bold sm:col-span-2">
+                  {L("category")}
+                  <select
+                    value={txCategoryId}
+                    onChange={(e) => handleTxCategoryChange(e.target.value)}
+                    className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
+                  >
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.icon} {categoryName(cat)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-sm font-bold sm:col-span-2">
                   {L("contractors")}
                   <select
                     value={txForm.contractor_id}
                     onChange={(e) => setTxForm((p) => ({ ...p, contractor_id: e.target.value }))}
-                    className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
+                    disabled={txContractors.length === 0}
+                    className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4 disabled:bg-gray-100"
                   >
-                    {contractors.filter((c) => c.is_active).map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {contractorName(c)}
-                      </option>
-                    ))}
+                    {txContractors.length === 0 ? (
+                      <option value="">{L("noContractorsInCategory")}</option>
+                    ) : (
+                      txContractors.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {contractorName(c)}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </label>
                 <label className="block text-sm font-bold">
@@ -680,7 +822,8 @@ export function AdminDashboard() {
                 <button
                   type="button"
                   onClick={() => void saveTransaction()}
-                  className="btn-big sm:col-span-2 rounded-2xl bg-[#e85d00] text-white"
+                  disabled={!txForm.contractor_id}
+                  className="btn-big sm:col-span-2 rounded-2xl bg-[#e85d00] text-white disabled:opacity-50"
                 >
                   {editingTxId ? L("updateTransaction") : L("saveTransaction")}
                 </button>
@@ -770,7 +913,7 @@ export function AdminDashboard() {
                 canvas.height = 120 + leaders.length * 44;
                 const ctx = canvas.getContext("2d");
                 if (!ctx) return;
-                ctx.fillStyle = "#FFF8F0";
+                ctx.fillStyle = "#FFFFFF";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 try {
                   const logo = new Image();
@@ -974,47 +1117,85 @@ export function AdminDashboard() {
                 )}
               </div>
             </Panel>
-
-            {qrPreview && selectedQrId && (
-              <Panel title={L("showQr")}>
-                <div className="text-center">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={qrPreview.url}
-                    alt={`QR ${qrPreview.name}`}
-                    className="mx-auto w-full max-w-sm rounded-2xl shadow-lg"
-                  />
-                  <p className="mt-4 text-lg font-black">{qrPreview.name}</p>
-                  <p className="text-base text-gray-600">{qrPreview.subtitle}</p>
-                  <p className="mt-1 font-mono text-sm text-gray-400">{qrPreview.token}</p>
-                  <p className="mt-4 rounded-xl bg-orange-50 px-4 py-3 text-sm font-bold text-[#e85d00]">
-                    {L("scanToOpen")}
-                  </p>
-                </div>
-              </Panel>
-            )}
           </>
         )}
       </main>
 
-      {/* Mobile bottom nav */}
+      {/* Mobile bottom nav — 4 main + Menu */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)] md:hidden">
-        <div className="flex overflow-x-auto px-1 py-1">
-          {TABS.map((t) => (
+        <div className="grid grid-cols-5 px-1 py-1">
+          {MOBILE_MAIN_TABS.map((t) => (
             <button
               key={t.key}
               type="button"
-              onClick={() => setTab(t.key)}
-              className={`flex min-h-[56px] min-w-[52px] shrink-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg text-[10px] font-bold ${
+              onClick={() => goToTab(t.key)}
+              className={`flex min-h-[56px] flex-col items-center justify-center gap-0.5 rounded-lg text-[10px] font-bold ${
                 tab === t.key ? "text-[#e85d00]" : "text-gray-500"
               }`}
             >
-              <span className="text-lg">{t.icon}</span>
+              <span className="text-xl">{t.icon}</span>
               <span className="truncate px-0.5">{L(t.label).split(" ")[0]}</span>
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            className={`flex min-h-[56px] flex-col items-center justify-center gap-0.5 rounded-lg text-[10px] font-bold ${
+              mobileMenuActive || mobileMenuOpen ? "text-[#e85d00]" : "text-gray-500"
+            }`}
+          >
+            <span className="text-xl">☰</span>
+            <span className="truncate px-0.5">{L("menu")}</span>
+          </button>
         </div>
       </nav>
+
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-[70] md:hidden">
+          <button
+            type="button"
+            aria-label={L("closeMenu")}
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-black text-gray-900">{L("menu")}</h2>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {MOBILE_MENU_TABS.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => goToTab(t.key)}
+                  className={`flex min-h-[56px] items-center gap-3 rounded-2xl border-2 px-4 text-left text-sm font-bold ${
+                    tab === t.key
+                      ? "border-[#e85d00] bg-orange-50 text-[#e85d00]"
+                      : "border-gray-100 bg-gray-50 text-gray-700"
+                  }`}
+                >
+                  <span className="text-2xl">{t.icon}</span>
+                  {L(t.label)}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={logout}
+              className="btn-big mt-3 w-full rounded-2xl bg-red-50 text-red-700"
+            >
+              {L("logout")}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

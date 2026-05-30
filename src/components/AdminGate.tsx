@@ -77,7 +77,7 @@ export function AdminGate() {
 
   if (!mounted) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fff8f0]">
+      <div className="flex min-h-screen items-center justify-center bg-white">
         <p className="text-lg font-bold text-gray-500">...</p>
       </div>
     );
@@ -85,11 +85,11 @@ export function AdminGate() {
 
   if (!authenticated) {
     return (
-      <div className="flex min-h-screen flex-col bg-[#fff8f0]">
+      <div className="flex min-h-screen flex-col bg-white">
         <div className="bg-[#1a2744] px-4 py-6 text-white">
           <div className="mx-auto flex max-w-md items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 flex-col items-center">
-              <ShopLogo size="md" priority />
+              <ShopLogo size="md" priority onDark />
               <p className="mt-2 text-lg font-bold opacity-90">
                 {ta(lang, adminLabels.admin.en, adminLabels.admin.te)}
               </p>

@@ -77,4 +77,11 @@ export const adminLabels = {
     te: "ఫోన్ కెమెరా తో స్కాన్ చేయమనండి",
   },
   showQr: { en: "Show QR", te: "QR చూపించు" },
+  back: { en: "Back", te: "వెనుక" },
+  noContractorsInCategory: {
+    en: "No contractors in this category",
+    te: "ఈ వర్గంలో కాంట్రాక్టర్లు లేరు",
+  },
+  menu: { en: "Menu", te: "మెనూ" },
+  closeMenu: { en: "Close menu", te: "మెనూ మూసు" },
 };
