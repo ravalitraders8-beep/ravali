@@ -33,7 +33,12 @@ export function ContractorDashboard({ data }: ContractorDashboardProps) {
       <header className="relative z-10 bg-[#1a2744] px-4 pb-8 pt-3 text-white">
         <MobileHeaderLangToggle />
         <div className="mx-auto flex max-w-lg items-center justify-between">
-          <ShopLogo size="sm" priority onDark />
+          <ShopLogo
+            size="sm"
+            priority
+            onDark
+            href={`/dashboard/${encodeURIComponent(contractor.qr_token)}`}
+          />
           <div
             className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-2xl"
             aria-hidden

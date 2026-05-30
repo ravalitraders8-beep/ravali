@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import Link from "next/link";
 import { LOGO_MARK_PATH, LOGO_PATH, SHOP_NAME } from "@/lib/constants";
 
 const SIZES = {
@@ -14,6 +17,12 @@ type ShopLogoProps = {
   priority?: boolean;
   /** Use on navy/dark headers — transparent logo, no white box */
   onDark?: boolean;
+  /** Explicit link — overrides home */
+  href?: string;
+  /** Auto home link: user → / (scan or dashboard), admin → /admin */
+  home?: "user" | "admin" | false;
+  /** In-app action instead of navigation (e.g. admin overview tab) */
+  onLogoClick?: () => void;
 };
 
 export function ShopLogo({
@@ -21,10 +30,13 @@ export function ShopLogo({
   className = "",
   priority = false,
   onDark = false,
+  href,
+  home = "user",
+  onLogoClick,
 }: ShopLogoProps) {
   const s = SIZES[size];
 
-  return (
+  const image = (
     <Image
       src={onDark ? LOGO_MARK_PATH : LOGO_PATH}
       alt={SHOP_NAME}
@@ -34,4 +46,31 @@ export function ShopLogo({
       className={`object-contain ${onDark ? "" : "bg-white"} ${s.className} ${className}`}
     />
   );
+
+  const wrapClass = "inline-flex shrink-0 rounded-lg transition-opacity hover:opacity-90 active:opacity-80";
+
+  if (onLogoClick) {
+    return (
+      <button
+        type="button"
+        onClick={onLogoClick}
+        className={wrapClass}
+        aria-label={SHOP_NAME}
+      >
+        {image}
+      </button>
+    );
+  }
+
+  const target = href ?? (home === "admin" ? "/admin" : home === "user" ? "/" : undefined);
+
+  if (target) {
+    return (
+      <Link href={target} className={wrapClass} aria-label={SHOP_NAME}>
+        {image}
+      </Link>
+    );
+  }
+
+  return image;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { LOGO_PATH, SHOP_NAME } from "@/lib/constants";
 import { t } from "@/lib/i18n";
 import { userMotivation } from "@/lib/motivation";
@@ -13,14 +14,20 @@ export function IntroSplash() {
   return (
     <div className="fixed inset-0 z-[9999] flex min-h-[100dvh] flex-col items-center justify-center bg-white px-6">
       <div className="intro-logo-wrap flex flex-col items-center">
-        <Image
-          src={LOGO_PATH}
-          alt={SHOP_NAME}
-          width={320}
-          height={320}
-          priority
-          className="intro-logo h-auto w-[min(72vw,280px)] max-w-[280px] object-contain sm:w-[300px]"
-        />
+        <Link
+          href="/"
+          className="inline-flex rounded-lg transition-opacity hover:opacity-90 active:opacity-80"
+          aria-label={SHOP_NAME}
+        >
+          <Image
+            src={LOGO_PATH}
+            alt={SHOP_NAME}
+            width={320}
+            height={320}
+            priority
+            className="intro-logo h-auto w-[min(72vw,280px)] max-w-[280px] object-contain sm:w-[300px]"
+          />
+        </Link>
         <p className="intro-quote mt-8 max-w-sm text-center text-xl font-black leading-snug text-[#1a2744] sm:text-2xl">
           {t(lang, userMotivation.quote.en, userMotivation.quote.te)}
         </p>

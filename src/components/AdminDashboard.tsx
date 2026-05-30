@@ -432,7 +432,7 @@ export function AdminDashboard() {
       <header className="sticky top-0 z-50 bg-[#1a2744] text-white shadow-lg">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
-            <ShopLogo size="sm" onDark />
+            <ShopLogo size="sm" onDark onLogoClick={() => goToTab("overview")} />
             <h1 className="truncate text-base font-black sm:text-lg">{L("admin")}</h1>
           </div>
           <div className="flex shrink-0 items-center gap-2">
