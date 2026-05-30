@@ -22,7 +22,7 @@ import { LOGO_PATH, SHOP_NAME } from "@/lib/constants";
 import { formatINR } from "@/lib/currency";
 import { useLang } from "@/context/LangContext";
 import { englishToTelugu } from "@/lib/transliterate";
-import { downloadQR, generateQRImageWithName } from "@/lib/qr-utils";
+import { downloadQR, generateQRCodeOnly } from "@/lib/qr-utils";
 import { clearAdminPinSession } from "@/lib/session";
 import { TRANSACTION_REASONS } from "@/lib/types";
 import type { Category, Contractor, RewardLevel, Transaction } from "@/lib/types";
@@ -307,11 +307,7 @@ export function AdminDashboard() {
     setQrLoading(true);
     setQrPreview(null);
     try {
-      const url = await generateQRImageWithName(
-        c.qr_token,
-        c.name_english,
-        c.name_telugu
-      );
+      const url = await generateQRCodeOnly(c.qr_token, 420);
       setQrPreview({
         url,
         token: c.qr_token,
@@ -402,25 +398,33 @@ export function AdminDashboard() {
             </p>
           </header>
 
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 overflow-y-auto p-4 pb-8">
-            {qrLoading ? (
-              <LoadingSpinner message={L("loading")} />
-            ) : qrPreview ? (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={qrPreview.url}
-                  alt={`QR ${qrPreview.name}`}
-                  className="w-full max-w-lg rounded-2xl shadow-2xl"
-                />
-                <p className="text-xl font-black text-gray-900">{qrPreview.name}</p>
-                <p className="text-lg text-gray-600">{qrPreview.subtitle}</p>
-                <p className="font-mono text-sm text-gray-400">{qrPreview.token}</p>
-                <p className="max-w-md rounded-2xl bg-orange-100 px-6 py-4 text-center text-base font-bold text-[#e85d00]">
-                  {L("scanToOpen")}
-                </p>
-              </>
-            ) : null}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="flex flex-col items-center gap-5 px-4 py-6 pb-8">
+              {qrLoading ? (
+                <LoadingSpinner message={L("loading")} />
+              ) : qrPreview ? (
+                <>
+                  <div className="w-full max-w-md text-center">
+                    <p className="text-3xl font-black text-[#1a2744]">{qrPreview.name}</p>
+                    <p className="mt-1 text-2xl font-bold text-gray-600">{qrPreview.subtitle}</p>
+                    <p className="mt-2 font-mono text-sm text-gray-400">{qrPreview.token}</p>
+                  </div>
+
+                  <div className="w-full max-w-md rounded-2xl border-4 border-[#1a2744] bg-white p-4 shadow-lg">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={qrPreview.url}
+                      alt={`QR ${qrPreview.name}`}
+                      className="mx-auto w-full max-w-[min(85vw,360px)]"
+                    />
+                  </div>
+
+                  <p className="max-w-md rounded-2xl bg-orange-100 px-6 py-4 text-center text-base font-bold text-[#e85d00]">
+                    {L("scanToOpen")}
+                  </p>
+                </>
+              ) : null}
+            </div>
           </div>
 
           <div className="shrink-0 border-t border-orange-200 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">

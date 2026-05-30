@@ -182,6 +182,15 @@ export async function generateQRImageWithName(
   return canvas.toDataURL("image/png");
 }
 
+/** Plain QR for on-screen display — names shown separately in UI */
+export async function generateQRCodeOnly(token: string, size = 400): Promise<string> {
+  return QRCode.toDataURL(getDashboardQrPayload(token), {
+    width: size,
+    margin: 2,
+    color: { dark: "#1a1a1a", light: "#FFFFFF" },
+  });
+}
+
 function roundRect(
   ctx: CanvasRenderingContext2D,
   x: number,
