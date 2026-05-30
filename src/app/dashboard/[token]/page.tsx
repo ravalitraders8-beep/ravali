@@ -1,25 +1,41 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ContractorDashboard } from "@/components/ContractorDashboard";
-import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { IntroSplash } from "@/components/IntroSplash";
 import { SetupRequired } from "@/components/SetupRequired";
 import { useCachedApi } from "@/hooks/useCachedApi";
 import { fetchContractorDashboard } from "@/lib/api-client";
 import { CACHE_TAGS } from "@/lib/cache-tags";
 import { labels } from "@/lib/i18n";
-import { getContractorSession, setContractorSession } from "@/lib/session";
+import {
+  getContractorSession,
+  setContractorSession,
+  markInstallPromptForSession,
+} from "@/lib/session";
+
+const INTRO_MIN_MS = 2200;
 
 export default function DashboardPage() {
   const params = useParams();
   const router = useRouter();
   const token = decodeURIComponent(params.token as string);
+  const [introDone, setIntroDone] = useState(false);
+
+  useEffect(() => {
+    const introTimer = window.setTimeout(() => setIntroDone(true), INTRO_MIN_MS);
+    return () => window.clearTimeout(introTimer);
+  }, []);
 
   useEffect(() => {
     const session = getContractorSession();
     if (!session || session.token.toUpperCase() !== token.toUpperCase()) {
       setContractorSession(token);
+    }
+    const search = new URLSearchParams(window.location.search);
+    if (search.get("from") === "qr") {
+      markInstallPromptForSession();
     }
   }, [token]);
 
@@ -39,12 +55,8 @@ export default function DashboardPage() {
     return "invalid";
   }, [error]);
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fff8f0]">
-        <LoadingSpinner message="వేచండి..." />
-      </div>
-    );
+  if (loading || !introDone) {
+    return <IntroSplash />;
   }
 
   if (errorType === "setup") return <SetupRequired />;

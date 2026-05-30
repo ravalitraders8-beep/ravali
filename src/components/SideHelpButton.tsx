@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { HelpPanelBackground } from "./HelpPanelBackground";
 import { ShopLogo } from "./ShopLogo";
 import { getCategoryAbout } from "@/lib/category-about";
 import { aboutUs } from "@/lib/about-us";
-import { SHOP_PHONE } from "@/lib/constants";
+import { SHOP_PHONE, LOGO_EN_PATH } from "@/lib/constants";
+import { userMotivation } from "@/lib/motivation";
 import { labels, t } from "@/lib/i18n";
 import { useLang } from "@/context/LangContext";
 import type { Category } from "@/lib/types";
@@ -163,11 +165,17 @@ export function SideHelpButton({ bottomOffset = "bottom-24", category }: SideHel
                 {t(lang, labels.contactShop.en, labels.contactShop.te)}
               </a>
 
-              {/* Logo photo at the bottom of help section */}
+              {/* Full English logo at bottom of help section */}
               <div className="mt-8 flex flex-col items-center rounded-2xl border-2 border-[#1a2744]/10 bg-white/90 p-5 shadow-sm">
-                <ShopLogo size="lg" />
+                <Image
+                  src={LOGO_EN_PATH}
+                  alt="RAVALI TRADERS"
+                  width={280}
+                  height={320}
+                  className="h-auto w-full max-w-[260px] object-contain"
+                />
                 <p className="mt-3 text-center text-sm font-bold text-[#1a2744]">
-                  {t(lang, "Built on Trust. Built to Last.", "నమ్మకంపై నిర్మించాం. నిలకడ కోసం.")}
+                  {t(lang, userMotivation.footer.en, userMotivation.footer.te)}
                 </p>
               </div>
             </div>

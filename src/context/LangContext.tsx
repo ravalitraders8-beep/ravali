@@ -55,15 +55,21 @@ export function useLang() {
   return ctx;
 }
 
-export function LangToggle() {
+export function LangToggle({ onDark = false }: { onDark?: boolean }) {
   const { lang, setLang } = useLang();
+  const shell = onDark
+    ? "border-2 border-white/30 bg-white/10 shadow-md backdrop-blur-sm"
+    : "border-2 border-[#1a2744]/20 bg-white shadow-sm";
+  const active = onDark ? "bg-white text-[#1a2744]" : "bg-[#1a2744] text-white";
+  const inactive = onDark ? "text-white" : "text-[#1a2744]";
+
   return (
-    <div className="flex overflow-hidden rounded-full border-2 border-[#1a2744]/20 bg-white shadow-sm">
+    <div className={`flex overflow-hidden rounded-full ${shell}`}>
       <button
         type="button"
         onClick={() => setLang("te")}
-        className={`min-h-[44px] px-4 text-sm font-black ${
-          lang === "te" ? "bg-[#1a2744] text-white" : "text-[#1a2744]"
+        className={`min-h-[40px] px-3.5 text-sm font-black sm:min-h-[44px] sm:px-4 ${
+          lang === "te" ? active : inactive
         }`}
       >
         తెలుగు
@@ -71,8 +77,8 @@ export function LangToggle() {
       <button
         type="button"
         onClick={() => setLang("en")}
-        className={`min-h-[44px] px-4 text-sm font-black ${
-          lang === "en" ? "bg-[#1a2744] text-white" : "text-[#1a2744]"
+        className={`min-h-[40px] px-3.5 text-sm font-black sm:min-h-[44px] sm:px-4 ${
+          lang === "en" ? active : inactive
         }`}
       >
         EN

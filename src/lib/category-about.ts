@@ -1,4 +1,5 @@
 import type { Category } from "./types";
+import { userMotivation } from "@/lib/motivation";
 
 export type CategoryKey = "painter" | "electrician" | "plumber" | "mason" | "carpenter";
 
@@ -127,10 +128,7 @@ export function getCategoryAbout(category: Category): CategoryAboutContent {
       te: "RAVALI TRADERS mee paniki manchi building samagri istundi. randi — mee kosam unnamu!",
     },
     products: [{ icon: category.icon, en: category.name_english, te: category.name_telugu }],
-    shopPromise: {
-      en: "Built on Trust. Built to Last.",
-      te: "nammakam pai nirmincham. nilakada kosam!",
-    },
+    shopPromise: userMotivation.tagline,
   };
 }
 

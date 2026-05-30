@@ -5,6 +5,8 @@ import {
   SESSION_DURATION_MS,
   ADMIN_PIN_SESSION_KEY,
   ADMIN_SESSION_EVENT,
+  INSTALL_PROMPT_KEY,
+  INSTALL_PROMPT_EVENT,
 } from "./constants";
 import type { ContractorSession } from "./types";
 
@@ -63,6 +65,21 @@ export function getAdminPinSession(): string | null {
 export function clearAdminPinSession(): void {
   sessionStorage.removeItem(ADMIN_PIN_SESSION_KEY);
   window.dispatchEvent(new Event(ADMIN_SESSION_EVENT));
+}
+
+export function markInstallPromptForSession(): void {
+  sessionStorage.setItem(INSTALL_PROMPT_KEY, "1");
+  window.dispatchEvent(new Event(INSTALL_PROMPT_EVENT));
+}
+
+export function shouldShowInstallPrompt(): boolean {
+  if (typeof window === "undefined") return false;
+  return sessionStorage.getItem(INSTALL_PROMPT_KEY) === "1";
+}
+
+export function dismissInstallPrompt(): void {
+  sessionStorage.removeItem(INSTALL_PROMPT_KEY);
+  window.dispatchEvent(new Event(INSTALL_PROMPT_EVENT));
 }
 
 export async function adminFetch(

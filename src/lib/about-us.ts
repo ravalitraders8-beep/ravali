@@ -1,14 +1,13 @@
 /** About RAVALI TRADERS — shown in side help panel & Telugu watermark background */
 
+import { userMotivation } from "./motivation";
+
 export const aboutUs = {
   title: {
     en: "About RAVALI TRADERS",
     te: "రవళి ట్రేడర్స్ గురించి",
   },
-  tagline: {
-    en: "Built on Trust. Built to Last.",
-    te: "నమ్మకంపై నిర్మించాం. నిలకడ కోసం అందిస్తున్నాం.",
-  },
+  tagline: userMotivation.tagline,
   intro: {
     en: "RAVALI TRADERS is your local building materials shop. We supply quality cement, steel, electricals, paints, and plumbing — everything contractors need for strong, lasting work.",
     te: "రవళి ట్రేడర్స్ మీ స్థానిక నిర్మాణ సామగ్రి షాప్. సిమెంట్, ఇనుము, ఎలక్ట్రికల్స్, పెయింట్స్, ప్లంబింగ్ — కాంట్రాక్టర్లకు అవసరమైన నాణ్యమైన సామగ్రి మేము అందిస్తాము.",
@@ -37,8 +36,8 @@ export const aboutUs = {
 /** Short lines for faint English background watermark in help panel */
 export const aboutUsWatermarkLinesEn = [
   "RAVALI TRADERS",
-  "Built on Trust",
-  "Built to Last",
+  "Buy • Rank up • Win!",
+  userMotivation.quote.en.split("—")[0]?.trim() ?? "Keep going!",
   "Cement • Iron • Electricals",
   "Paints • Plumbing",
   "Your One Stop Building Solution",
@@ -47,9 +46,9 @@ export const aboutUsWatermarkLinesEn = [
 /** Short lines for faint Telugu background watermark */
 export const aboutUsWatermarkLines = [
   "రవళి ట్రేడర్స్",
-  "నమ్మకంపై నిర్మించాం",
+  "కొనండి • Rank పెంచుకోండి",
+  "బహుమతి గెలుచుకోండి",
   "నాణ్యత మా వాగ్దానం",
-  "సేవ మా లక్ష్యం",
   "సిమెంట్ • ఇనుము • ఎలక్ట్రికల్స్",
   "పెయింట్స్ • ప్లంబింగ్",
 ];

@@ -1,12 +1,12 @@
 "use client";
 
 import { ShopLogo } from "./ShopLogo";
-import { UserPageExtras } from "./UserPageExtras";
+import { UserPageExtras, MobileHeaderLangToggle } from "./UserPageExtras";
 import { DashboardSummary } from "./DashboardSummary";
 import { labels, t } from "@/lib/i18n";
 import { useLang } from "@/context/LangContext";
 import { ContactShopButton } from "./ContactShopButton";
-import { AndroidInstall } from "./AndroidInstall";
+import { InstallAppPrompt } from "./InstallAppPrompt";
 import { UserLeaderboard } from "./UserLeaderboard";
 import { GiftsSection } from "./GiftsSection";
 import type { ContractorDashboardData } from "@/lib/types";
@@ -31,6 +31,7 @@ export function ContractorDashboard({ data }: ContractorDashboardProps) {
 
       {/* Simple top — name + trade only */}
       <header className="relative z-10 bg-[#1a2744] px-4 pb-8 pt-3 text-white">
+        <MobileHeaderLangToggle />
         <div className="mx-auto flex max-w-lg items-center justify-between">
           <ShopLogo size="sm" priority />
           <div
@@ -77,7 +78,7 @@ export function ContractorDashboard({ data }: ContractorDashboardProps) {
         />
       </main>
 
-      <AndroidInstall />
+      <InstallAppPrompt />
       <ContactShopButton />
     </div>
   );

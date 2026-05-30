@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
 const PWA_INSTALLED_KEY = "ravali-pwa-installed";
 const PWA_STATE_EVENT = "ravali-pwa-state";
+export const PWA_PROMPT_READY_EVENT = "ravali-pwa-prompt-ready";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -55,6 +56,7 @@ export function usePWAInstall() {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       setCanInstall(true);
+      window.dispatchEvent(new Event(PWA_PROMPT_READY_EVENT));
     };
 
     const onInstalled = () => {

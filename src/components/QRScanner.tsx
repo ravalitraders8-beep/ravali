@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Html5Qrcode } from "html5-qrcode";
+import { IntroSplash } from "./IntroSplash";
 import { LoadingSpinner } from "./LoadingSpinner";
 import { ShopLogo } from "./ShopLogo";
-import { UserPageExtras } from "./UserPageExtras";
+import { UserPageExtras, MobileHeaderLangToggle } from "./UserPageExtras";
 import { labels, t } from "@/lib/i18n";
 import { parseQrToken } from "@/lib/qr-utils";
-import { setContractorSession } from "@/lib/session";
+import { setContractorSession, markInstallPromptForSession } from "@/lib/session";
 import { useLang } from "@/context/LangContext";
 
 export function QRScanner() {
@@ -47,7 +48,8 @@ export function QRScanner() {
 
       await stopScanner();
       setContractorSession(token);
-      router.replace(`/dashboard/${encodeURIComponent(token)}`);
+      markInstallPromptForSession();
+      router.replace(`/dashboard/${encodeURIComponent(token)}?from=qr`);
     },
     [lang, router, stopScanner]
   );
@@ -87,22 +89,15 @@ export function QRScanner() {
   }, [goToDashboard, stopScanner]);
 
   if (redirecting) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-[#f4f6f9] p-6">
-        <span className="text-6xl">✅</span>
-        <p className="mt-4 text-2xl font-black text-[#1a2744]">
-          {t(lang, "Opening...", "తెరుస్తోంది...")}
-        </p>
-        <LoadingSpinner message="" />
-      </div>
-    );
+    return <IntroSplash />;
   }
 
   return (
     <div className="relative flex min-h-screen flex-col bg-[#f4f6f9]">
       <UserPageExtras helpBottomOffset="bottom-6" />
 
-      <header className="relative z-10 bg-[#1a2744] px-4 py-6 text-center">
+      <header className="relative z-10 bg-[#1a2744] px-4 pb-6 pt-3 text-center">
+        <MobileHeaderLangToggle />
         <ShopLogo size="lg" priority />
       </header>
 

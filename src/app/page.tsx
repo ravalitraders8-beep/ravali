@@ -4,14 +4,22 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { QRScanner } from "@/components/QRScanner";
 import { SetupRequired } from "@/components/SetupRequired";
-import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { IntroSplash } from "@/components/IntroSplash";
 import { fetchSetupStatus } from "@/lib/api-client";
 import { getContractorSession } from "@/lib/session";
+
+const INTRO_MIN_MS = 2400;
 
 export default function HomePage() {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [ready, setReady] = useState(false);
+  const [introDone, setIntroDone] = useState(false);
+
+  useEffect(() => {
+    const introTimer = window.setTimeout(() => setIntroDone(true), INTRO_MIN_MS);
+    return () => window.clearTimeout(introTimer);
+  }, []);
 
   useEffect(() => {
     const session = getContractorSession();
@@ -26,12 +34,8 @@ export default function HomePage() {
       .finally(() => setChecking(false));
   }, [router]);
 
-  if (checking) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fff8f0]">
-        <LoadingSpinner />
-      </div>
-    );
+  if (checking || !introDone) {
+    return <IntroSplash />;
   }
 
   if (!ready) return <SetupRequired />;
