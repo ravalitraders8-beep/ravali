@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Noto_Sans_Telugu, Inter } from "next/font/google";
 import { LangProvider } from "@/context/LangContext";
+import { LangDocumentSync } from "@/components/LangDocumentSync";
 import { PWARegister } from "@/components/PWARegister";
 import { PWA_CAPTURE_SCRIPT } from "@/lib/pwa-install-store";
 import Script from "next/script";
@@ -40,6 +41,9 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "RAVALI TRADERS",
   },
+  other: {
+    google: "notranslate",
+  },
 };
 
 export const viewport: Viewport = {
@@ -55,14 +59,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="te" className={`${notoTelugu.variable} ${inter.variable} h-full bg-white`}>
+    <html
+      lang="te"
+      translate="no"
+      className={`notranslate ${notoTelugu.variable} ${inter.variable} h-full bg-white`}
+    >
       <head>
+        <meta name="google" content="notranslate" />
         <Script id="ravali-pwa-capture" strategy="beforeInteractive">
           {PWA_CAPTURE_SCRIPT}
         </Script>
       </head>
-      <body className="min-h-full flex flex-col bg-white font-sans text-gray-900 antialiased">
+      <body className="notranslate min-h-full flex flex-col bg-white font-sans text-gray-900 antialiased">
         <LangProvider>
+          <LangDocumentSync />
           {children}
         </LangProvider>
         <PWARegister />
