@@ -84,4 +84,8 @@ export const adminLabels = {
   },
   menu: { en: "Menu", te: "మెనూ" },
   closeMenu: { en: "Close menu", te: "మెనూ మూసు" },
+  mobileNavOverview: { en: "Home", te: "హోమ్" },
+  mobileNavAmounts: { en: "Amount", te: "మొత్తం" },
+  mobileNavContractors: { en: "Staff", te: "కాండు" },
+  mobileNavQr: { en: "QR", te: "QR" },
 };

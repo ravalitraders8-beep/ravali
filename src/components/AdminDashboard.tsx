@@ -47,6 +47,13 @@ const MOBILE_MENU_TAB_KEYS: Tab[] = ["registry", "leaderboard", "rewards", "targ
 const MOBILE_MAIN_TABS = MOBILE_MAIN_TAB_KEYS.map((key) => TABS.find((t) => t.key === key)!);
 const MOBILE_MENU_TABS = MOBILE_MENU_TAB_KEYS.map((key) => TABS.find((t) => t.key === key)!);
 
+const MOBILE_NAV_SHORT: Partial<Record<Tab, keyof typeof adminLabels>> = {
+  overview: "mobileNavOverview",
+  amounts: "mobileNavAmounts",
+  contractors: "mobileNavContractors",
+  qr: "mobileNavQr",
+};
+
 export function AdminDashboard() {
   const { lang } = useLang();
   const L = (key: keyof typeof adminLabels) =>
@@ -439,6 +446,19 @@ export function AdminDashboard() {
             <AdminLangToggle />
             <button
               type="button"
+              onClick={() => setMobileMenuOpen((open) => !open)}
+              className={`flex min-h-[40px] min-w-[40px] items-center justify-center rounded-xl text-xl font-bold md:hidden ${
+                mobileMenuActive || mobileMenuOpen
+                  ? "bg-white text-[#e85d00]"
+                  : "bg-white/20 text-white"
+              }`}
+              aria-label={L("menu")}
+              aria-expanded={mobileMenuOpen}
+            >
+              ☰
+            </button>
+            <button
+              type="button"
               onClick={logout}
               className="hidden min-h-[40px] rounded-xl bg-white/20 px-4 text-sm font-bold sm:block"
             >
@@ -446,6 +466,34 @@ export function AdminDashboard() {
             </button>
           </div>
         </div>
+
+        {/* Mobile menu — drops down from header */}
+        {mobileMenuOpen && (
+          <div className="border-t border-white/20 bg-[#1a2744] px-4 py-3 md:hidden">
+            <div className="grid grid-cols-2 gap-2">
+              {MOBILE_MENU_TABS.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => goToTab(t.key)}
+                  className={`flex min-h-[48px] items-center gap-2 rounded-xl px-3 text-left text-sm font-bold ${
+                    tab === t.key ? "bg-white text-[#e85d00]" : "bg-white/15 text-white"
+                  }`}
+                >
+                  <span className="text-lg">{t.icon}</span>
+                  {L(t.label)}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={logout}
+              className="btn-big mt-2 w-full rounded-xl bg-red-500/20 text-sm font-bold text-red-100"
+            >
+              {L("logout")}
+            </button>
+          </div>
+        )}
 
         {/* Desktop tabs */}
         <nav className="hidden border-t border-white/20 md:block">
@@ -1121,81 +1169,28 @@ export function AdminDashboard() {
         )}
       </main>
 
-      {/* Mobile bottom nav — 4 main + Menu */}
+      {/* Mobile bottom nav — 4 main tabs only */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)] md:hidden">
-        <div className="grid grid-cols-5 px-1 py-1">
-          {MOBILE_MAIN_TABS.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => goToTab(t.key)}
-              className={`flex min-h-[56px] flex-col items-center justify-center gap-0.5 rounded-lg text-[10px] font-bold ${
-                tab === t.key ? "text-[#e85d00]" : "text-gray-500"
-              }`}
-            >
-              <span className="text-xl">{t.icon}</span>
-              <span className="truncate px-0.5">{L(t.label).split(" ")[0]}</span>
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(true)}
-            className={`flex min-h-[56px] flex-col items-center justify-center gap-0.5 rounded-lg text-[10px] font-bold ${
-              mobileMenuActive || mobileMenuOpen ? "text-[#e85d00]" : "text-gray-500"
-            }`}
-          >
-            <span className="text-xl">☰</span>
-            <span className="truncate px-0.5">{L("menu")}</span>
-          </button>
+        <div className="grid grid-cols-4 gap-0 px-2 py-1.5">
+          {MOBILE_MAIN_TABS.map((t) => {
+            const shortKey = MOBILE_NAV_SHORT[t.key];
+            const label = shortKey ? L(shortKey) : L(t.label).split(" ")[0];
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => goToTab(t.key)}
+                className={`flex min-h-[54px] flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-bold leading-none ${
+                  tab === t.key ? "bg-orange-50 text-[#e85d00]" : "text-gray-600"
+                }`}
+              >
+                <span className="text-[22px] leading-none">{t.icon}</span>
+                <span className="max-w-full truncate text-center">{label}</span>
+              </button>
+            );
+          })}
         </div>
       </nav>
-
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-[70] md:hidden">
-          <button
-            type="button"
-            aria-label={L("closeMenu")}
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setMobileMenuOpen(false)}
-          />
-          <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-black text-gray-900">{L("menu")}</h2>
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-lg font-bold"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {MOBILE_MENU_TABS.map((t) => (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => goToTab(t.key)}
-                  className={`flex min-h-[56px] items-center gap-3 rounded-2xl border-2 px-4 text-left text-sm font-bold ${
-                    tab === t.key
-                      ? "border-[#e85d00] bg-orange-50 text-[#e85d00]"
-                      : "border-gray-100 bg-gray-50 text-gray-700"
-                  }`}
-                >
-                  <span className="text-2xl">{t.icon}</span>
-                  {L(t.label)}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={logout}
-              className="btn-big mt-3 w-full rounded-2xl bg-red-50 text-red-700"
-            >
-              {L("logout")}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
