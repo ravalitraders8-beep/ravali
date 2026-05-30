@@ -1,4 +1,5 @@
 export const SHOP_NAME = "RAVALI TRADERS";
+export const LOGO_PATH = "/logo.png";
 export const SHOP_PHONE = "919876543210";
 export const WHATSAPP_MESSAGE =
   "Hello RAVALI TRADERS! I have a question about my rewards. | నమస్కారం RAVALI TRADERS!";

@@ -10,20 +10,40 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import { LoadingSpinner } from "./LoadingSpinner";
-import { SupabaseSetupPanel } from "./SupabaseSetupPanel";
+import { AdminLangToggle } from "./AdminLangToggle";
 import { BilingualField } from "./BilingualField";
-import { bilingualDisplay, englishToTelugu } from "@/lib/transliterate";
-import { SHOP_NAME } from "@/lib/constants";
+import { LoadingSpinner } from "./LoadingSpinner";
+import { adminLabels, ta } from "@/lib/admin-i18n";
+import { subscribeCache } from "@/lib/api-cache";
+import { adminPostAction, fetchAdminBundle } from "@/lib/api-client";
+import { CACHE_TAGS } from "@/lib/cache-tags";
+import { ShopLogo } from "./ShopLogo";
+import { LOGO_PATH, SHOP_NAME } from "@/lib/constants";
 import { formatINR } from "@/lib/currency";
-import { adminFetch, clearAdminPinSession } from "@/lib/session";
-import { downloadQR, generateQRDataUrl } from "@/lib/qr-utils";
+import { useLang } from "@/context/LangContext";
+import { englishToTelugu } from "@/lib/transliterate";
+import { downloadQR, generateQRImageWithName } from "@/lib/qr-utils";
+import { clearAdminPinSession } from "@/lib/session";
 import { TRANSACTION_REASONS } from "@/lib/types";
 import type { Category, Contractor, RewardLevel, Transaction } from "@/lib/types";
 
 type Tab = "overview" | "contractors" | "amounts" | "leaderboard" | "rewards" | "targets" | "qr";
 
-export function AdminDashboard({ hasSupabase = true }: { hasSupabase?: boolean }) {
+const TABS: { key: Tab; icon: string; label: keyof typeof adminLabels }[] = [
+  { key: "overview", icon: "📊", label: "overview" },
+  { key: "contractors", icon: "👷", label: "contractors" },
+  { key: "amounts", icon: "₹", label: "amounts" },
+  { key: "leaderboard", icon: "🏆", label: "leaderboard" },
+  { key: "rewards", icon: "🎁", label: "rewards" },
+  { key: "targets", icon: "🎯", label: "targets" },
+  { key: "qr", icon: "📱", label: "qr" },
+];
+
+export function AdminDashboard() {
+  const { lang } = useLang();
+  const L = (key: keyof typeof adminLabels) =>
+    ta(lang, adminLabels[key].en, adminLabels[key].te);
+
   const [tab, setTab] = useState<Tab>("overview");
   const [toast, setToast] = useState<string | null>(null);
   const [stats, setStats] = useState<{
@@ -55,80 +75,84 @@ export function AdminDashboard({ hasSupabase = true }: { hasSupabase?: boolean }
     reasonIdx: 0,
     transaction_date: new Date().toISOString().slice(0, 10),
   });
-  const [qrPreview, setQrPreview] = useState<{ url: string; token: string; name: string } | null>(
-    null
-  );
+  const [qrPreview, setQrPreview] = useState<{
+    url: string;
+    token: string;
+    name: string;
+    subtitle: string;
+  } | null>(null);
 
-  const loadAll = useCallback(async () => {
+  const contractorName = (c: Contractor) =>
+    lang === "te" ? c.name_telugu : c.name_english;
+
+  const loadAll = useCallback(async (force = false) => {
     setLoading(true);
     setLoadError(null);
     try {
-      const [statsRes, dataRes] = await Promise.all([
-        adminFetch("/api/admin"),
-        adminFetch("/api/admin", { method: "PATCH" }),
-      ]);
-      if (statsRes.status === 401 || dataRes.status === 401) {
-        setLoadError("Session expired. Please log in again.");
-        return;
-      }
-      if (statsRes.ok) setStats(await statsRes.json());
-      if (dataRes.ok) {
-        const d = await dataRes.json();
-        const cats: Category[] = d.categories ?? [];
-        setContractors(d.contractors ?? []);
-        setCategories(cats);
-        setRewardLevels(d.rewardLevels ?? []);
-        setTransactions(d.transactions ?? []);
-        setRewards(d.rewards ?? []);
-        setNewContractor((p) => ({
-          ...p,
-          category_id: p.category_id || cats[0]?.id || "",
-        }));
-        setTxForm((p) => ({
-          ...p,
-          contractor_id: p.contractor_id || d.contractors?.[0]?.id || "",
-        }));
-      } else if (dataRes.status === 503) {
-        setLoadError("Supabase not configured. Add keys to .env.local and run SQL migrations.");
+      const { stats: s, data } = await fetchAdminBundle(force);
+      setStats(s);
+      const cats = (data.categories as Category[]) ?? [];
+      setContractors((data.contractors as Contractor[]) ?? []);
+      setCategories(cats);
+      setRewardLevels((data.rewardLevels as RewardLevel[]) ?? []);
+      setTransactions((data.transactions as Transaction[]) ?? []);
+      setRewards((data.rewards as Array<Record<string, unknown>>) ?? []);
+      setNewContractor((p) => ({ ...p, category_id: p.category_id || cats[0]?.id || "" }));
+      setTxForm((p) => ({
+        ...p,
+        contractor_id: p.contractor_id || (data.contractors as Contractor[])?.[0]?.id || "",
+      }));
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      if (status === 401) {
+        setLoadError(ta(lang, adminLabels.sessionExpired.en, adminLabels.sessionExpired.te));
       } else {
-        const err = await dataRes.json().catch(() => ({}));
-        setLoadError(String(err.error ?? err.message ?? "Could not load data from database."));
+        setLoadError(ta(lang, adminLabels.failed.en, adminLabels.failed.te));
       }
-    } catch {
-      setLoadError("Could not load data. Check your connection.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [lang]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- loadAll fetches server data on mount
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount fetch
     void loadAll();
+    return subscribeCache((tags) => {
+      if (tags.some((t) => t === CACHE_TAGS.ADMIN || t === CACHE_TAGS.CONTRACTOR)) {
+        void loadAll(true);
+      }
+    });
   }, [loadAll]);
 
   const showToast = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 4000);
+    setTimeout(() => setToast(null), 3000);
   };
 
   const postAction = async (body: Record<string, unknown>) => {
-    const res = await adminFetch("/api/admin", {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      showToast(String(data.message ?? data.error ?? "Action failed. Please try again."));
+    const { ok, data } = await adminPostAction(body);
+    if (!ok) {
+      showToast(String(data.message ?? data.error ?? L("failed")));
       return false;
     }
-    showToast("Saved successfully! | విజయవంతంగా సేవ్ అయింది!");
-    await loadAll();
+    showToast(L("saved"));
+    await loadAll(true);
     return true;
   };
 
-  const showQR = async (token: string, name: string) => {
-    const url = await generateQRDataUrl(token);
-    setQrPreview({ url, token, name });
+  const previewQR = async (c: Contractor) => {
+    const url = await generateQRImageWithName(
+      c.qr_token,
+      c.name_english,
+      c.name_telugu
+    );
+    setQrPreview({
+      url,
+      token: c.qr_token,
+      name: c.name_english,
+      subtitle: c.name_telugu,
+    });
+    setTab("qr");
   };
 
   const logout = () => {
@@ -137,154 +161,131 @@ export function AdminDashboard({ hasSupabase = true }: { hasSupabase?: boolean }
   };
 
   if (loading && !stats) {
-    return <LoadingSpinner message="Loading dashboard... | డాష్‌బోర్డ్ లోడ్..." />;
-  }
-
-  if (loadError && !hasSupabase) {
     return (
-      <div className="min-h-screen bg-[#fff8f0]">
-        <header className="bg-[#e85d00] px-4 py-6 text-center text-white">
-          <h1 className="text-2xl font-black">{SHOP_NAME}</h1>
-          <p className="mt-1 text-lg">అడ్మిన్ | Admin</p>
-        </header>
-        <div className="mx-auto max-w-lg p-4">
-          <SupabaseSetupPanel />
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-[#f5f5f5]">
+        <LoadingSpinner message={L("loading")} />
       </div>
     );
   }
 
   if (loadError) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-white p-6 text-center">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#f5f5f5] p-6">
         <span className="text-4xl">⚠️</span>
-        <p className="text-lg font-bold text-gray-900">{loadError}</p>
+        <p className="text-lg font-bold">{loadError}</p>
         <button
           type="button"
-          onClick={() => window.location.reload()}
-          className="min-h-[48px] rounded-xl bg-[#FF6B00] px-8 font-bold text-white"
+          onClick={() => void loadAll(true)}
+          className="btn-big rounded-2xl bg-[#e85d00] px-8 text-white"
         >
-          Try Again | మళ్ళీ ప్రయత్నించండి
+          {L("tryAgain")}
         </button>
       </div>
     );
   }
 
   const chartData = (stats?.leaderboard ?? []).slice(0, 8).map((e) => ({
-    name: e.name_telugu.slice(0, 10),
+    name: e.name_telugu.slice(0, 8),
     amount: Number(e.total_amount),
   }));
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: "overview", label: "📊 Overview" },
-    { key: "contractors", label: "👷 Contractors" },
-    { key: "amounts", label: "₹ Amounts" },
-    { key: "leaderboard", label: "🏆 Leaderboard" },
-    { key: "rewards", label: "🎁 Rewards" },
-    { key: "targets", label: "🎯 Targets" },
-    { key: "qr", label: "📱 QR" },
-  ];
-
   return (
-    <div className="min-h-screen bg-[#fff8f0]">
-      {!hasSupabase && (
-        <div className="mx-auto max-w-4xl p-4">
-          <SupabaseSetupPanel />
-        </div>
-      )}
+    <div className="min-h-screen bg-[#f5f5f5] pb-24 md:pb-8">
       {toast && (
-        <div className="fixed bottom-4 left-1/2 z-50 max-w-sm -translate-x-1/2 rounded-xl bg-gray-900 px-4 py-3 text-center text-sm text-white shadow-lg">
+        <div className="fixed bottom-20 left-1/2 z-[60] -translate-x-1/2 rounded-2xl bg-gray-900 px-5 py-3 text-sm font-bold text-white shadow-xl md:bottom-6">
           {toast}
         </div>
       )}
-      <header className="sticky top-0 z-50 bg-[#e85d00] px-4 py-5 text-white shadow-md">
-        <div className="mx-auto flex max-w-4xl items-center justify-between">
-          <div>
-            <p className="text-xs uppercase opacity-80">Admin | అడ్మిన్</p>
-            <h1 className="text-xl font-bold">{SHOP_NAME}</h1>
+
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-[#1a2744] text-white shadow-lg">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <ShopLogo size="sm" />
+            <h1 className="truncate text-base font-black sm:text-lg">{L("admin")}</h1>
           </div>
-          <button type="button" onClick={logout} className="rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold">
-            Logout
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <AdminLangToggle />
+            <button
+              type="button"
+              onClick={logout}
+              className="hidden min-h-[40px] rounded-xl bg-white/20 px-4 text-sm font-bold sm:block"
+            >
+              {L("logout")}
+            </button>
+          </div>
         </div>
+
+        {/* Desktop tabs */}
+        <nav className="hidden border-t border-white/20 md:block">
+          <div className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-2 py-2">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setTab(t.key)}
+                className={`flex min-h-[44px] shrink-0 items-center gap-2 rounded-xl px-4 text-sm font-bold transition-colors ${
+                  tab === t.key ? "bg-white text-[#e85d00]" : "text-white/90 hover:bg-white/15"
+                }`}
+              >
+                <span>{t.icon}</span>
+                {L(t.label)}
+              </button>
+            ))}
+          </div>
+        </nav>
       </header>
 
-      <nav className="sticky top-[72px] z-40 overflow-x-auto border-b bg-white">
-        <div className="mx-auto flex max-w-4xl gap-1 p-2">
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              className={`min-h-[48px] shrink-0 rounded-lg px-3 text-sm font-semibold ${
-                tab === t.key ? "bg-[#FF6B00] text-white" : "bg-gray-100"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </nav>
-
-      <main className="mx-auto max-w-4xl space-y-4 p-4 pb-8">
-        <SupabaseSetupPanel />
-
+      <main className="mx-auto max-w-5xl space-y-4 p-4">
         {tab === "overview" && stats && (
           <>
-            <div className="grid grid-cols-2 gap-3">
-              <StatCard label="Active Contractors" value={stats.totalActive} />
-              <StatCard label="This Month Total" value={formatINR(stats.monthTotalAmount)} isText />
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <StatCard label={L("activeContractors")} value={stats.totalActive} />
+              <StatCard label={L("monthTotal")} value={formatINR(stats.monthTotalAmount)} small />
               <StatCard
-                label="Top This Month | ఈ నెల టాప్"
+                label={L("topContractor")}
                 value={stats.topContractor?.name_telugu ?? "—"}
-                isText
+                small
               />
-              <StatCard label="Target Achieved" value={stats.targetAchievedCount} />
+              <StatCard label={L("targetAchieved")} value={stats.targetAchievedCount} />
             </div>
-            <div className="rounded-xl border bg-white p-4">
-              <h3 className="mb-4 font-bold">Monthly Amount Chart | నెలవారీ మొత్తం</h3>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" fontSize={12} />
-                  <YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} fontSize={12} />
-                  <Tooltip formatter={(v) => formatINR(Number(v))} />
-                  <Bar dataKey="amount" fill="#FF6B00" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <Panel title={L("monthTotal")}>
+              <div className="h-56 w-full sm:h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" fontSize={11} />
+                    <YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} fontSize={11} />
+                    <Tooltip formatter={(v) => formatINR(Number(v))} />
+                    <Bar dataKey="amount" fill="#e85d00" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Panel>
           </>
         )}
 
         {tab === "contractors" && (
           <>
-            <Panel title="Add Contractor | కాంట్రాక్టర్ జోడించండి">
-              <p className="mb-3 rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
-                ✨ Type in <strong>English only</strong> — Telugu fills automatically.
-                Both will be saved and shown everywhere.
-                <br />
-                <span className="text-xs opacity-90">
-                  ఇంగ్లీష్ లో టైప్ చేయండి — తెలుగు ఆటోమేటిక్ గా వస్తుంది
-                </span>
+            <Panel title={L("addContractor")}>
+              <p className="mb-4 rounded-xl bg-orange-50 p-3 text-sm font-medium text-orange-900">
+                {L("typeEnglishHint")}
               </p>
-              <div className="grid gap-3">
-                <BilingualField
-                  englishLabel="Name (English) | పేరు"
-                  teluguLabel="పేరు (తెలుగు) — Auto"
-                  englishValue={newContractor.name_english}
-                  teluguValue={newContractor.name_telugu}
-                  onEnglishChange={(v) =>
-                    setNewContractor((p) => ({ ...p, name_english: v }))
-                  }
-                  onTeluguChange={(v) =>
-                    setNewContractor((p) => ({ ...p, name_telugu: v }))
-                  }
-                  englishPlaceholder="e.g. Rohith Kumar"
-                  required
-                />
-
-                <label className="text-sm font-semibold">
-                  Phone | ఫోన్ *
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <BilingualField
+                    englishLabel={L("name")}
+                    teluguLabel={`${L("name")} (Auto)`}
+                    englishValue={newContractor.name_english}
+                    teluguValue={newContractor.name_telugu}
+                    onEnglishChange={(v) => setNewContractor((p) => ({ ...p, name_english: v }))}
+                    onTeluguChange={(v) => setNewContractor((p) => ({ ...p, name_telugu: v }))}
+                    englishPlaceholder="Rohith Kumar"
+                    required
+                  />
+                </div>
+                <label className="block text-sm font-bold">
+                  {L("phone")} *
                   <input
                     value={newContractor.phone}
                     onChange={(e) =>
@@ -293,68 +294,54 @@ export function AdminDashboard({ hasSupabase = true }: { hasSupabase?: boolean }
                         phone: e.target.value.replace(/\D/g, "").slice(0, 10),
                       }))
                     }
-                    placeholder="10 digit mobile — e.g. 9876543210"
                     inputMode="numeric"
-                    className="mt-1 min-h-[48px] w-full rounded-xl border px-4"
+                    className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
                   />
                 </label>
-
-                <BilingualField
-                  englishLabel="Village (English) | గ్రామం"
-                  teluguLabel="గ్రామం (తెలుగు) — Auto"
-                  englishValue={newContractor.village_english}
-                  teluguValue={newContractor.village_telugu}
-                  onEnglishChange={(v) =>
-                    setNewContractor((p) => ({ ...p, village_english: v }))
-                  }
-                  onTeluguChange={(v) =>
-                    setNewContractor((p) => ({ ...p, village_telugu: v }))
-                  }
-                  englishPlaceholder="e.g. Palakurthy"
-                />
-
-                <label className="text-sm font-semibold">
-                  Category | వర్గం
+                <label className="block text-sm font-bold">
+                  {L("category")}
                   <select
                     value={newContractor.category_id}
                     onChange={(e) =>
                       setNewContractor((p) => ({ ...p, category_id: e.target.value }))
                     }
-                    className="mt-1 min-h-[48px] w-full rounded-xl border px-4"
-                    disabled={loading || categories.length === 0}
+                    className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
                   >
-                    {!newContractor.category_id && (
-                      <option value="">Select category | వర్గం ఎంచుకోండి</option>
-                    )}
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name_english} | {c.name_telugu}
+                        {lang === "te" ? c.name_telugu : c.name_english}
                       </option>
                     ))}
                   </select>
                 </label>
+                <div className="sm:col-span-2">
+                  <BilingualField
+                    englishLabel={L("village")}
+                    teluguLabel={`${L("village")} (Auto)`}
+                    englishValue={newContractor.village_english}
+                    teluguValue={newContractor.village_telugu}
+                    onEnglishChange={(v) =>
+                      setNewContractor((p) => ({ ...p, village_english: v }))
+                    }
+                    onTeluguChange={(v) =>
+                      setNewContractor((p) => ({ ...p, village_telugu: v }))
+                    }
+                    englishPlaceholder="Palakurthy"
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={async () => {
                     const nameEn = newContractor.name_english.trim();
                     let nameTe = newContractor.name_telugu.trim();
                     if (!nameTe && nameEn) nameTe = englishToTelugu(nameEn);
-
-                    if (!nameEn) {
-                      showToast("Please enter name in English | ఇంగ్లీష్ లో పేరు నమోదు చేయండి");
+                    if (!nameEn || newContractor.phone.length < 10) {
+                      showToast(L("failed"));
                       return;
                     }
-                    if (newContractor.phone.length < 10) {
-                      showToast("Please enter 10-digit phone | 10 అంకెల ఫోన్ నమోదు చేయండి");
-                      return;
-                    }
-
                     const villageEn = newContractor.village_english.trim() || nameEn;
                     let villageTe = newContractor.village_telugu.trim();
-                    if (!villageTe && newContractor.village_english.trim()) {
-                      villageTe = englishToTelugu(newContractor.village_english);
-                    }
-                    if (!villageTe) villageTe = villageEn;
+                    if (!villageTe && villageEn) villageTe = englishToTelugu(villageEn);
 
                     const ok = await postAction({
                       action: "add_contractor",
@@ -375,95 +362,118 @@ export function AdminDashboard({ hasSupabase = true }: { hasSupabase?: boolean }
                       });
                     }
                   }}
-                  className="min-h-[52px] rounded-xl bg-[#FF6B00] text-lg font-bold text-white"
+                  className="btn-big sm:col-span-2 rounded-2xl bg-[#e85d00] text-white"
                 >
-                  ➕ Add & Generate QR | జోడించండి
+                  ➕ {L("addAndQr")}
                 </button>
               </div>
             </Panel>
-            <Panel title="Contractors List">
-              {contractors.map((c) => (
-                <div key={c.id} className="mb-2 flex flex-wrap items-center gap-2 border-b py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold">
-                      {bilingualDisplay(c.name_english, c.name_telugu)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {c.qr_token} • {c.phone} •{" "}
-                      {bilingualDisplay(c.village_english, c.village_telugu)} •{" "}
-                      {c.is_active ? "Active | సక్రియ" : "Inactive"}
-                    </p>
+
+            <Panel title={L("contractorsList")}>
+              {contractors.length === 0 ? (
+                <p className="py-8 text-center text-gray-500">{L("noContractors")}</p>
+              ) : (
+                contractors.map((c) => (
+                  <div
+                    key={c.id}
+                    className="mb-3 flex flex-col gap-2 rounded-xl border border-gray-100 bg-gray-50 p-3 sm:flex-row sm:items-center"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-base font-black">{contractorName(c)}</p>
+                      <p className="truncate text-xs text-gray-500">
+                        {c.qr_token} • {c.phone}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void previewQR(c)}
+                        className="min-h-[44px] rounded-xl bg-white px-4 text-sm font-bold shadow-sm"
+                      >
+                        📱 QR
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void downloadQR(c.qr_token, c.name_english, c.name_telugu)
+                        }
+                        className="min-h-[44px] rounded-xl bg-[#e85d00] px-4 text-sm font-bold text-white"
+                      >
+                        ⬇️ {L("download")}
+                      </button>
+                      {c.is_active && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            postAction({ action: "update_contractor", id: c.id, is_active: false })
+                          }
+                          className="min-h-[44px] rounded-xl bg-red-100 px-4 text-sm font-bold text-red-700"
+                        >
+                          {L("deactivate")}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <button type="button" onClick={() => showQR(c.qr_token, c.name_telugu)} className="rounded-lg bg-gray-100 px-3 py-2 text-sm">QR</button>
-                  <button type="button" onClick={() => downloadQR(c.qr_token, c.name_telugu)} className="rounded-lg bg-blue-100 px-3 py-2 text-sm">⬇️</button>
-                  {c.is_active && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        postAction({ action: "update_contractor", id: c.id, is_active: false })
-                      }
-                      className="rounded-lg bg-red-100 px-3 py-2 text-sm text-red-700"
-                    >
-                      Deactivate
-                    </button>
-                  )}
-                </div>
-              ))}
+                ))
+              )}
             </Panel>
           </>
         )}
 
         {tab === "amounts" && (
           <>
-            <Panel title="Add Amount | మొత్తం జోడించండి">
-              <div className="grid gap-3">
-                <label className="text-sm font-semibold">
-                  Contractor | కాంట్రాక్టర్
+            <Panel title={L("addAmount")}>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block text-sm font-bold sm:col-span-2">
+                  {L("contractors")}
                   <select
                     value={txForm.contractor_id}
                     onChange={(e) => setTxForm((p) => ({ ...p, contractor_id: e.target.value }))}
-                    className="mt-1 min-h-[48px] w-full rounded-xl border px-4"
+                    className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
                   >
                     {contractors.filter((c) => c.is_active).map((c) => (
                       <option key={c.id} value={c.id}>
-                        {bilingualDisplay(c.name_english, c.name_telugu)}
+                        {contractorName(c)}
                       </option>
                     ))}
                   </select>
                 </label>
-                <label className="text-sm font-semibold">
-                  Amount (₹) | మొత్తం
+                <label className="block text-sm font-bold">
+                  {L("amount")}
                   <input
                     type="number"
                     min={1}
                     value={txForm.amount}
                     onChange={(e) => setTxForm((p) => ({ ...p, amount: Number(e.target.value) }))}
-                    className="mt-1 min-h-[48px] w-full rounded-xl border px-4"
-                    placeholder="e.g. 5000"
+                    className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
                   />
                 </label>
-                <label className="text-sm font-semibold">
-                  Reason | కారణం
-                  <select
-                    value={txForm.reasonIdx}
-                    onChange={(e) => setTxForm((p) => ({ ...p, reasonIdx: Number(e.target.value) }))}
-                    className="mt-1 min-h-[48px] w-full rounded-xl border px-4"
-                  >
-                    {TRANSACTION_REASONS.map((r, i) => (
-                      <option key={r.en} value={i}>
-                        {r.en} | {r.te}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-sm font-semibold">
-                  Date | తేదీ
+                <label className="block text-sm font-bold">
+                  {L("date")}
                   <input
                     type="date"
                     value={txForm.transaction_date}
-                    onChange={(e) => setTxForm((p) => ({ ...p, transaction_date: e.target.value }))}
-                    className="mt-1 min-h-[48px] w-full rounded-xl border px-4"
+                    onChange={(e) =>
+                      setTxForm((p) => ({ ...p, transaction_date: e.target.value }))
+                    }
+                    className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
                   />
+                </label>
+                <label className="block text-sm font-bold sm:col-span-2">
+                  {L("reason")}
+                  <select
+                    value={txForm.reasonIdx}
+                    onChange={(e) =>
+                      setTxForm((p) => ({ ...p, reasonIdx: Number(e.target.value) }))
+                    }
+                    className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
+                  >
+                    {TRANSACTION_REASONS.map((r, i) => (
+                      <option key={r.en} value={i}>
+                        {lang === "te" ? r.te : r.en}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <button
                   type="button"
@@ -478,22 +488,27 @@ export function AdminDashboard({ hasSupabase = true }: { hasSupabase?: boolean }
                       transaction_date: txForm.transaction_date,
                     });
                   }}
-                  className="min-h-[48px] rounded-xl bg-[#FF6B00] font-bold text-white"
+                  className="btn-big sm:col-span-2 rounded-2xl bg-[#e85d00] text-white"
                 >
-                  Save Transaction
+                  {L("saveTransaction")}
                 </button>
               </div>
             </Panel>
-            <Panel title="Recent Transactions | ఇటీవలి చరిత్ర">
+            <Panel title={L("recentTx")}>
               {transactions.slice(0, 20).map((tx) => {
                 const c = contractors.find((x) => x.id === tx.contractor_id);
                 return (
-                  <div key={tx.id} className="flex justify-between border-b py-2 text-sm">
-                    <span>
-                      {c ? bilingualDisplay(c.name_english, c.name_telugu) : "—"} —{" "}
-                      {tx.reason_english} | {tx.reason_telugu}
+                  <div
+                    key={tx.id}
+                    className="flex items-center justify-between gap-2 border-b border-gray-100 py-3 text-sm"
+                  >
+                    <span className="min-w-0 truncate font-medium">
+                      {c ? contractorName(c) : "—"} —{" "}
+                      {lang === "te" ? tx.reason_telugu : tx.reason_english}
                     </span>
-                    <span className="font-bold text-green-600">+{formatINR(Number(tx.amount))}</span>
+                    <span className="shrink-0 font-black text-green-600">
+                      +{formatINR(Number(tx.amount))}
+                    </span>
                   </div>
                 );
               })}
@@ -502,78 +517,107 @@ export function AdminDashboard({ hasSupabase = true }: { hasSupabase?: boolean }
         )}
 
         {tab === "leaderboard" && stats && (
-          <Panel title="This Month Leaderboard">
+          <Panel title={L("leaderboard")}>
             {stats.leaderboard.map((e, i) => (
-              <div key={i} className="flex items-center gap-3 border-b py-2">
-                <span className="font-bold text-[#FF6B00]">{i + 1}</span>
-                <div className="flex-1">
-                  <p className="font-semibold">{e.name_telugu}</p>
+              <div key={i} className="flex items-center gap-3 border-b border-gray-100 py-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 text-lg font-black text-[#e85d00]">
+                  {i + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-bold">{e.name_telugu}</p>
                   <p className="text-xs text-gray-500">{e.category_telugu}</p>
                 </div>
-                <span className="font-black">{formatINR(Number(e.total_amount))}</span>
+                <span className="shrink-0 font-black">{formatINR(Number(e.total_amount))}</span>
               </div>
             ))}
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 const canvas = document.createElement("canvas");
                 const leaders = stats.leaderboard.slice(0, 10);
                 canvas.width = 600;
-                canvas.height = 80 + leaders.length * 44;
+                canvas.height = 120 + leaders.length * 44;
                 const ctx = canvas.getContext("2d");
                 if (!ctx) return;
-                ctx.fillStyle = "#FFF";
+                ctx.fillStyle = "#FFF8F0";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = "#FF6B00";
-                ctx.font = "bold 22px sans-serif";
-                ctx.fillText(`${SHOP_NAME} - Monthly Winners`, 20, 40);
+                try {
+                  const logo = new Image();
+                  logo.src = LOGO_PATH;
+                  await new Promise<void>((resolve, reject) => {
+                    logo.onload = () => resolve();
+                    logo.onerror = reject;
+                  });
+                  const logoH = 70;
+                  const logoW = (logo.width / logo.height) * logoH;
+                  ctx.drawImage(logo, (canvas.width - logoW) / 2, 10, logoW, logoH);
+                } catch {
+                  ctx.fillStyle = "#1a2744";
+                  ctx.font = "bold 22px sans-serif";
+                  ctx.textAlign = "center";
+                  ctx.fillText(SHOP_NAME, canvas.width / 2, 45);
+                }
+                ctx.textAlign = "left";
                 ctx.fillStyle = "#333";
                 ctx.font = "18px sans-serif";
                 leaders.forEach((e, i) => {
-                  ctx.fillText(`${i + 1}. ${e.name_telugu} - ${formatINR(Number(e.total_amount))}`, 20, 80 + i * 44);
+                  ctx.fillText(
+                    `${i + 1}. ${e.name_telugu} — ${formatINR(Number(e.total_amount))}`,
+                    20,
+                    110 + i * 44
+                  );
                 });
                 const link = document.createElement("a");
-                link.download = "ravali-leaderboard.png";
+                link.download = "ravali-winners.png";
                 link.href = canvas.toDataURL("image/png");
                 link.click();
               }}
-              className="mt-4 min-h-[48px] w-full rounded-xl bg-green-600 font-bold text-white"
+              className="btn-big mt-4 w-full rounded-2xl bg-green-600 text-white"
             >
-              Export for WhatsApp
+              {L("exportWhatsapp")}
             </button>
           </Panel>
         )}
 
         {tab === "rewards" && (
           <>
-            <Panel title="Mark Reward Delivered">
-              <div className="grid gap-3">
-                <select id="rw-contractor" className="min-h-[48px] rounded-xl border px-4">
+            <Panel title={L("markReward")}>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <select id="rw-contractor" className="min-h-[48px] rounded-xl border-2 px-4">
                   {contractors.filter((c) => c.is_active).map((c) => (
-                    <option key={c.id} value={c.id}>{c.name_telugu}</option>
+                    <option key={c.id} value={c.id}>
+                      {contractorName(c)}
+                    </option>
                   ))}
                 </select>
-                <select id="rw-level" className="min-h-[48px] rounded-xl border px-4">
+                <select id="rw-level" className="min-h-[48px] rounded-xl border-2 px-4">
                   {rewardLevels.map((l) => (
-                    <option key={l.id} value={l.id}>{l.icon} {l.level_name_telugu}</option>
+                    <option key={l.id} value={l.id}>
+                      {l.icon}{" "}
+                      {lang === "te" ? l.level_name_telugu : l.level_name_english}
+                    </option>
                   ))}
                 </select>
                 <button
                   type="button"
                   onClick={() => {
-                    const contractor_id = (document.getElementById("rw-contractor") as HTMLSelectElement).value;
-                    const reward_level_id = (document.getElementById("rw-level") as HTMLSelectElement).value;
+                    const contractor_id = (
+                      document.getElementById("rw-contractor") as HTMLSelectElement
+                    ).value;
+                    const reward_level_id = (
+                      document.getElementById("rw-level") as HTMLSelectElement
+                    ).value;
                     postAction({ action: "deliver_reward", contractor_id, reward_level_id });
                   }}
-                  className="min-h-[48px] rounded-xl bg-[#FF6B00] font-bold text-white"
+                  className="btn-big sm:col-span-2 rounded-2xl bg-[#e85d00] text-white"
                 >
-                  Mark Delivered ✅
+                  {L("markDelivered")}
                 </button>
               </div>
             </Panel>
-            <Panel title="Delivery History">
+            <Panel title={L("rewardHistory")}>
               {rewards.map((r) => (
-                <div key={String(r.id)} className="border-b py-2 text-sm">
+                <div key={String(r.id)} className="border-b border-gray-100 py-3 text-sm">
                   {(r.contractors as { name_telugu: string })?.name_telugu} —{" "}
                   {(r.reward_levels as { level_name_telugu: string })?.level_name_telugu} ✅
                 </div>
@@ -583,16 +627,21 @@ export function AdminDashboard({ hasSupabase = true }: { hasSupabase?: boolean }
         )}
 
         {tab === "targets" && (
-          <Panel title="Category Monthly Targets | నెలవారీ లక్ష్యాలు">
+          <Panel title={L("categoryTargets")}>
             {categories.map((cat) => (
-              <div key={cat.id} className="mb-4 flex flex-wrap items-center gap-2 border-b pb-4">
+              <div
+                key={cat.id}
+                className="mb-4 flex flex-col gap-2 border-b border-gray-100 pb-4 sm:flex-row sm:items-center"
+              >
                 <span className="text-2xl">{cat.icon}</span>
-                <span className="flex-1 font-semibold">{cat.name_english} | {cat.name_telugu}</span>
+                <span className="flex-1 font-bold">
+                  {lang === "te" ? cat.name_telugu : cat.name_english}
+                </span>
                 <input
                   type="number"
                   defaultValue={cat.monthly_target_amount}
                   id={`target-${cat.id}`}
-                  className="min-h-[44px] w-32 rounded-lg border px-2"
+                  className="min-h-[44px] w-full rounded-xl border-2 px-3 sm:w-36"
                 />
                 <button
                   type="button"
@@ -606,9 +655,9 @@ export function AdminDashboard({ hasSupabase = true }: { hasSupabase?: boolean }
                       monthly_target_amount: val,
                     });
                   }}
-                  className="rounded-lg bg-[#FF6B00] px-4 py-2 text-sm font-bold text-white"
+                  className="min-h-[44px] rounded-xl bg-[#e85d00] px-6 font-bold text-white"
                 >
-                  Save
+                  {L("save")}
                 </button>
               </div>
             ))}
@@ -616,26 +665,53 @@ export function AdminDashboard({ hasSupabase = true }: { hasSupabase?: boolean }
         )}
 
         {tab === "qr" && (
-          <Panel title="QR Generator">
+          <Panel title={L("qrGenerator")}>
             {qrPreview ? (
               <div className="text-center">
-                <p className="mb-2 font-bold">{qrPreview.name}</p>
-                <img src={qrPreview.url} alt="QR" className="mx-auto rounded-xl" />
-                <p className="mt-2 font-mono text-sm">{qrPreview.token}</p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={qrPreview.url}
+                  alt={`QR ${qrPreview.name}`}
+                  className="mx-auto w-full max-w-sm rounded-2xl shadow-lg"
+                />
+                <p className="mt-4 text-lg font-black">{qrPreview.name}</p>
+                <p className="text-base text-gray-600">{qrPreview.subtitle}</p>
+                <p className="mt-1 font-mono text-sm text-gray-400">{qrPreview.token}</p>
                 <button
                   type="button"
-                  onClick={() => downloadQR(qrPreview.token, qrPreview.name)}
-                  className="mt-3 min-h-[48px] rounded-xl bg-[#FF6B00] px-6 font-bold text-white"
+                  onClick={() =>
+                    void downloadQR(qrPreview.token, qrPreview.name, qrPreview.subtitle)
+                  }
+                  className="btn-big mt-4 rounded-2xl bg-[#e85d00] px-8 text-white"
                 >
-                  Download PNG
+                  ⬇️ {L("download")}
                 </button>
               </div>
             ) : (
-              <p className="text-gray-500">Select a contractor from Contractors tab → QR</p>
+              <p className="py-12 text-center text-gray-500">{L("selectContractorQr")}</p>
             )}
           </Panel>
         )}
       </main>
+
+      {/* Mobile bottom nav */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)] md:hidden">
+        <div className="flex justify-around px-1 py-1">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              className={`flex min-h-[56px] min-w-[48px] flex-1 flex-col items-center justify-center gap-0.5 rounded-lg text-xs font-bold ${
+                tab === t.key ? "text-[#e85d00]" : "text-gray-500"
+              }`}
+            >
+              <span className="text-xl">{t.icon}</span>
+              <span className="truncate px-0.5">{L(t.label).split(" ")[0]}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }
@@ -643,24 +719,26 @@ export function AdminDashboard({ hasSupabase = true }: { hasSupabase?: boolean }
 function StatCard({
   label,
   value,
-  isText,
+  small,
 }: {
   label: string;
   value: string | number;
-  isText?: boolean;
+  small?: boolean;
 }) {
   return (
-    <div className="rounded-xl border bg-white p-4 shadow-sm">
-      <p className={`font-black text-[#FF6B00] ${isText ? "text-lg" : "text-3xl"}`}>{value}</p>
-      <p className="text-sm text-gray-600">{label}</p>
+    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+      <p className={`font-black text-[#e85d00] ${small ? "text-base sm:text-lg" : "text-2xl sm:text-3xl"}`}>
+        {value}
+      </p>
+      <p className="mt-1 text-xs font-medium text-gray-500 sm:text-sm">{label}</p>
     </div>
   );
 }
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border bg-white p-4 shadow-sm">
-      <h2 className="mb-3 text-lg font-bold">{title}</h2>
+    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+      <h2 className="mb-4 text-lg font-black text-gray-900">{title}</h2>
       {children}
     </div>
   );

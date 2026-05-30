@@ -26,8 +26,8 @@ export const labels = {
   noHistory: { en: "Nothing yet this month", te: "ఈ నెల ఇంకా లేదు" },
   setupTitle: { en: "Shop Not Ready", te: "షాప్ ఇంకా సిద్ధం కాలేదు" },
   setupHint: {
-    en: "Shop owner must connect database first",
-    te: "యజమాని డేటాబేస్ కనెక్ట్ చేయాలి",
+    en: "Please contact the shop",
+    te: "దయచేసి షాప్‌కు సంప్రదించండి",
   },
   step1: { en: "1. Open camera", te: "① కెమెరా తెరవండి" },
   step2: { en: "2. Show QR card", te: "② QR కార్డ్ చూపండి" },

@@ -1,14 +1,14 @@
 "use client";
 
-import { SHOP_NAME } from "@/lib/constants";
+import { ShopLogo } from "./ShopLogo";
+import { UserPageExtras } from "./UserPageExtras";
+import { RankBanner } from "./RankBanner";
+import { CategoryAboutCard } from "./CategoryAboutCard";
 import { labels, t } from "@/lib/i18n";
 import { useLang } from "@/context/LangContext";
 import { AmountCard } from "./AmountCard";
 import { ContactShopButton } from "./ContactShopButton";
 import { GiftsSection } from "./GiftsSection";
-import { LeaderboardSection } from "./LeaderboardSection";
-import { RewardLevelBadge } from "./RewardLevelBadge";
-import { TransactionHistory } from "./TransactionHistory";
 import type { ContractorDashboardData } from "@/lib/types";
 
 interface ContractorDashboardProps {
@@ -17,7 +17,7 @@ interface ContractorDashboardProps {
 
 export function ContractorDashboard({ data }: ContractorDashboardProps) {
   const { lang } = useLang();
-  const { contractor, category, monthlyAmount, rewardLevel, transactions, rewardLevels, leaderboard, allCategories } =
+  const { contractor, category, monthlyAmount, rewardLevel, rewardLevels, leaderboard } =
     data;
 
   const achievementPercent =
@@ -26,9 +26,10 @@ export function ContractorDashboard({ data }: ContractorDashboardProps) {
       : 0;
 
   return (
-    <div className="min-h-screen bg-[#fff8f0] pb-28">
-      {/* Top bar — compact shop branding */}
-      <header className="relative overflow-hidden bg-gradient-to-br from-[#c44d00] via-[#e85d00] to-[#f5923d] px-4 pb-16 pt-4 text-white">
+    <div className="relative min-h-screen bg-[#fff8f0] pb-28">
+      <UserPageExtras helpBottomOffset="bottom-24" category={category} />
+
+      <header className="relative z-10 overflow-hidden bg-gradient-to-br from-[#c44d00] via-[#e85d00] to-[#f5923d] px-4 pb-16 pt-4 text-white">
         <div
           className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10"
           aria-hidden
@@ -38,14 +39,10 @@ export function ContractorDashboard({ data }: ContractorDashboardProps) {
           aria-hidden
         />
 
-        <div className="relative mx-auto flex max-w-lg items-center justify-center gap-2">
-          <span className="text-xl" aria-hidden>
-            🏗️
-          </span>
-          <p className="text-sm font-bold uppercase tracking-widest opacity-95">{SHOP_NAME}</p>
+        <div className="relative mx-auto flex max-w-lg items-center justify-center">
+          <ShopLogo size="sm" priority />
         </div>
 
-        {/* Profile card — name, trade, village in one row */}
         <div className="relative mx-auto mt-4 max-w-lg">
           <div className="flex items-center gap-3 rounded-2xl border border-white/25 bg-white/15 p-3 shadow-lg backdrop-blur-sm">
             <div
@@ -77,7 +74,6 @@ export function ContractorDashboard({ data }: ContractorDashboardProps) {
           </div>
         </div>
 
-        {/* Smooth curve into page body */}
         <div
           className="absolute -bottom-px left-0 right-0 h-8 bg-[#fff8f0]"
           style={{ borderRadius: "24px 24px 0 0" }}
@@ -85,19 +81,19 @@ export function ContractorDashboard({ data }: ContractorDashboardProps) {
         />
       </header>
 
-      <main className="relative mx-auto max-w-lg space-y-4 px-4 -mt-10">
+      <main className="relative z-10 mx-auto max-w-lg space-y-4 px-4 -mt-10">
+        <RankBanner
+          contractorId={contractor.id}
+          category={category}
+          monthlyAmount={monthlyAmount}
+          leaderboard={leaderboard}
+        />
         <AmountCard
           amount={monthlyAmount}
           target={Number(category.monthly_target_amount)}
           achievementPercent={achievementPercent}
         />
-        {rewardLevel && <RewardLevelBadge level={rewardLevel} />}
-        <LeaderboardSection
-          entries={leaderboard}
-          categories={allCategories}
-          currentContractorId={contractor.id}
-        />
-        <TransactionHistory transactions={transactions} />
+        <CategoryAboutCard category={category} />
         <GiftsSection
           rewardLevels={rewardLevels}
           monthlyAmount={monthlyAmount}

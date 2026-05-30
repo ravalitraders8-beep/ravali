@@ -21,6 +21,10 @@ export const metadata: Metadata = {
   title: "RAVALI TRADERS — Contractor Recognition",
   description: "Amount-based contractor rewards dashboard powered by Supabase",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -29,7 +33,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#e85d00",
+  themeColor: "#1a2744",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

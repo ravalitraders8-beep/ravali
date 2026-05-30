@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonNoStore, jsonWithCache } from "@/lib/cache-headers";
 import { getAdminPin, isSupabaseConfigured } from "@/lib/env";
+import { getAdminData, getAdminStats } from "@/lib/server/admin-data";
+import { bustServerCache } from "@/lib/server/cache-sync";
 
 function verifyPin(request: NextRequest): boolean {
   const pin = request.headers.get("x-admin-pin")?.trim();
@@ -28,27 +31,9 @@ export async function GET(request: NextRequest) {
   if (!isSupabaseConfigured()) return notConfigured();
 
   try {
-    const { getAdminClient } = await import("@/lib/supabase/admin");
-    const { getCurrentMonthYear } = await import("@/lib/currency");
-    const monthYear = getCurrentMonthYear();
-    const supabase = getAdminClient();
+    const result = await getAdminStats();
 
-    const { data: contractors } = await supabase
-      .from("contractors")
-      .select("id")
-      .eq("is_active", true);
-
-    const { data: monthTx } = await supabase
-      .from("transactions")
-      .select("amount, contractor_id")
-      .eq("month_year", monthYear);
-
-    const { data: leaderboard, error: rpcError } = await supabase.rpc(
-      "get_monthly_leaderboard",
-      { p_month_year: monthYear }
-    );
-
-    if (rpcError) {
+    if ("error" in result && result.error === "rpc_error") {
       return NextResponse.json(
         {
           error: "rpc_error",
@@ -58,22 +43,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const monthTotal = (monthTx ?? []).reduce((s, t) => s + Number(t.amount), 0);
-    const top = leaderboard?.[0];
-    const targetAchieved = (leaderboard ?? []).filter(
-      (e: { achievement_percent: number }) => Number(e.achievement_percent) >= 100
-    ).length;
-
-    return NextResponse.json({
-      totalActive: contractors?.length ?? 0,
-      monthTotalAmount: monthTotal,
-      topContractor: top
-        ? { name_telugu: top.name_telugu, amount: Number(top.total_amount) }
-        : null,
-      targetAchievedCount: targetAchieved,
-      leaderboard: leaderboard ?? [],
-      monthYear,
-    });
+    return jsonWithCache(result, "private-short");
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Failed to load stats" },
@@ -146,14 +116,16 @@ export async function POST(request: NextRequest) {
         target_contractor_id: data.id,
         details: `Added ${name_telugu}`,
       });
-      return NextResponse.json(data);
+      bustServerCache();
+      return jsonNoStore(data);
     }
 
     if (body.action === "update_contractor") {
       const { id, ...updates } = body;
       const { error } = await supabase.from("contractors").update(updates).eq("id", id);
       if (error) return NextResponse.json({ message: error.message }, { status: 400 });
-      return NextResponse.json({ ok: true });
+      bustServerCache();
+      return jsonNoStore({ ok: true });
     }
 
     if (body.action === "add_transaction") {
@@ -177,7 +149,8 @@ export async function POST(request: NextRequest) {
         target_contractor_id: contractor_id,
         details: `${reason_english} ₹${amount}`,
       });
-      return NextResponse.json(data);
+      bustServerCache();
+      return jsonNoStore(data);
     }
 
     if (body.action === "deliver_reward") {
@@ -189,7 +162,8 @@ export async function POST(request: NextRequest) {
         .select()
         .single();
       if (error) return NextResponse.json({ message: error.message }, { status: 400 });
-      return NextResponse.json(data);
+      bustServerCache();
+      return jsonNoStore(data);
     }
 
     if (body.action === "update_target") {
@@ -199,7 +173,8 @@ export async function POST(request: NextRequest) {
         .update({ monthly_target_amount })
         .eq("id", category_id);
       if (error) return NextResponse.json({ message: error.message }, { status: 400 });
-      return NextResponse.json({ ok: true });
+      bustServerCache();
+      return jsonNoStore({ ok: true });
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
@@ -219,28 +194,8 @@ export async function PATCH(request: NextRequest) {
   if (!isSupabaseConfigured()) return notConfigured();
 
   try {
-    const { getAdminClient } = await import("@/lib/supabase/admin");
-    const supabase = getAdminClient();
-    const [contractors, transactions, rewards, categories, rewardLevels] = await Promise.all([
-      supabase.from("contractors").select("*, categories(*)").order("name_telugu"),
-      supabase.from("transactions").select("*").order("created_at", { ascending: false }).limit(50),
-      supabase
-        .from("rewards_delivered")
-        .select("*, contractors(name_telugu), reward_levels(level_name_telugu, icon)")
-        .order("delivered_date", { ascending: false }),
-      supabase.from("categories").select("*"),
-      supabase.from("reward_levels").select("*").order("min_amount"),
-    ]);
-
-    if (contractors.error) throw new Error(contractors.error.message);
-
-    return NextResponse.json({
-      contractors: contractors.data ?? [],
-      transactions: transactions.data ?? [],
-      rewards: rewards.data ?? [],
-      categories: categories.data ?? [],
-      rewardLevels: rewardLevels.data ?? [],
-    });
+    const data = await getAdminData();
+    return jsonWithCache(data, "private-short");
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Failed to load admin data" },

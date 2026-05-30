@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Html5Qrcode } from "html5-qrcode";
 import { LoadingSpinner } from "./LoadingSpinner";
-import { SHOP_NAME } from "@/lib/constants";
+import { ShopLogo } from "./ShopLogo";
+import { UserPageExtras } from "./UserPageExtras";
 import { labels, t } from "@/lib/i18n";
 import { parseQrToken } from "@/lib/qr-utils";
 import { setContractorSession } from "@/lib/session";
@@ -104,15 +105,15 @@ export function QRScanner() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#fff8f0]">
-      <header className="bg-[#e85d00] px-4 pb-10 pt-8 text-center text-white">
+    <div className="relative flex min-h-screen flex-col bg-[#fff8f0]">
+      <UserPageExtras helpBottomOffset="bottom-6" />
+      <header className="relative z-10 bg-[#1a2744] px-4 pb-10 pt-8 text-center text-white">
         <div className="mx-auto flex max-w-lg flex-col items-center">
-          <span className="text-5xl">🏗️</span>
-          <h1 className="mt-3 text-3xl font-black tracking-wide">{SHOP_NAME}</h1>
+          <ShopLogo size="xl" priority />
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-lg flex-1 px-4 -mt-6">
+      <main className="relative z-10 mx-auto w-full max-w-lg flex-1 px-4 -mt-6">
         <div className="card-visual bg-white p-6">
           <div className="mb-6 text-center">
             <span className="icon-xl">📷</span>

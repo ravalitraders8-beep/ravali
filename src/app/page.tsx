@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { QRScanner } from "@/components/QRScanner";
 import { SetupRequired } from "@/components/SetupRequired";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { fetchSetupStatus } from "@/lib/api-client";
 import { getContractorSession } from "@/lib/session";
 
 export default function HomePage() {
@@ -19,8 +20,7 @@ export default function HomePage() {
       return;
     }
 
-    fetch("/api/setup-status")
-      .then((r) => r.json())
+    fetchSetupStatus()
       .then((d) => setReady(Boolean(d.ready && d.hasSupabase)))
       .catch(() => setReady(false))
       .finally(() => setChecking(false));

@@ -1,0 +1,174 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { HelpPanelBackground } from "./HelpPanelBackground";
+import { ShopLogo } from "./ShopLogo";
+import { getCategoryAbout } from "@/lib/category-about";
+import { aboutUs } from "@/lib/about-us";
+import { SHOP_PHONE } from "@/lib/constants";
+import { labels, t } from "@/lib/i18n";
+import { useLang } from "@/context/LangContext";
+import type { Category } from "@/lib/types";
+
+type SideHelpButtonProps = {
+  bottomOffset?: string;
+  /** When set, help shows only this trade (e.g. paints for painters) */
+  category?: Category;
+};
+
+export function SideHelpButton({ bottomOffset = "bottom-24", category }: SideHelpButtonProps) {
+  const { lang } = useLang();
+  const [open, setOpen] = useState(false);
+  const trade = category ? getCategoryAbout(category) : null;
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={t(lang, "Help", "సహాయం")}
+        className={`fixed right-0 z-50 flex min-h-[52px] min-w-[52px] flex-col items-center justify-center rounded-l-2xl bg-[#1a2744] py-3 pl-2 pr-1 text-white shadow-lg transition-transform active:scale-95 sm:min-h-[56px] sm:min-w-[56px] ${bottomOffset}`}
+      >
+        <span className="text-xl leading-none sm:text-2xl" aria-hidden>
+          ?
+        </span>
+        <span className="mt-0.5 text-[10px] font-bold leading-tight sm:text-xs">
+          {t(lang, "Help", "సహాయం")}
+        </span>
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-[70] flex justify-end">
+          <button
+            type="button"
+            aria-label={t(lang, "Close", "మూసివేయండి")}
+            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            onClick={() => setOpen(false)}
+          />
+
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="about-us-title"
+            className="relative flex h-full w-full max-w-md flex-col overflow-hidden bg-[#fff8f0] shadow-2xl"
+          >
+            <HelpPanelBackground />
+
+            <div className="relative z-10 sticky top-0 bg-[#1a2744] px-4 py-4 text-white">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide opacity-80">
+                    {t(lang, "About Us", "మా గురించి")}
+                  </p>
+                  <h2 id="about-us-title" className="mt-1 text-xl font-black">
+                    {trade
+                      ? t(lang, trade.title.en, trade.title.te)
+                      : t(lang, aboutUs.title.en, aboutUs.title.te)}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 text-xl font-bold"
+                  aria-label={t(lang, "Close", "మూసివేయండి")}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <div className="relative z-10 flex-1 overflow-y-auto px-4 py-5">
+              <div className="mb-5 flex justify-center">
+                <ShopLogo size="md" />
+              </div>
+
+              {trade ? (
+                <>
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-5xl" aria-hidden>
+                      {trade.icon}
+                    </span>
+                    <p
+                      className="text-xl font-black"
+                      style={{ color: category?.color_hex ?? "#e85d00" }}
+                    >
+                      {lang === "te" ? category?.name_telugu : category?.name_english}
+                    </p>
+                  </div>
+
+                  <p className="mt-4 text-base leading-relaxed text-gray-700">
+                    {t(lang, trade.about.en, trade.about.te)}
+                  </p>
+
+                  <h3 className="mt-6 text-sm font-black uppercase tracking-wide text-[#1a2744]">
+                    {t(lang, "What We Have", "మా దగ్గర ఏమి ఉంది")}
+                  </h3>
+                  <ul className="mt-3 grid grid-cols-2 gap-2">
+                    {trade.products.map((p) => (
+                      <li
+                        key={p.en}
+                        className="flex flex-col items-center rounded-xl border border-[#1a2744]/10 bg-white p-3 text-center shadow-sm"
+                      >
+                        <span className="text-2xl" aria-hidden>
+                          {p.icon}
+                        </span>
+                        <span className="mt-1 text-sm font-bold text-gray-800">
+                          {t(lang, p.en, p.te)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <p className="mt-4 rounded-xl bg-[#1a2744]/5 p-3 text-center text-base font-bold text-[#1a2744]">
+                    ★ {t(lang, trade.shopPromise.en, trade.shopPromise.te)}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-center text-lg font-black text-[#e85d00]">
+                    {t(lang, aboutUs.tagline.en, aboutUs.tagline.te)}
+                  </p>
+                  <p className="mt-4 text-base leading-relaxed text-gray-700">
+                    {t(lang, aboutUs.intro.en, aboutUs.intro.te)}
+                  </p>
+                </>
+              )}
+
+              <h3 className="mt-6 text-sm font-black uppercase tracking-wide text-[#1a2744]">
+                {t(lang, "Your Gifts", "మీ బహుమతులు")}
+              </h3>
+              <p className="mt-2 text-base leading-relaxed text-gray-700">
+                {t(lang, aboutUs.rewards.en, aboutUs.rewards.te)}
+              </p>
+
+              <p className="mt-4 text-sm text-gray-600">
+                {t(lang, aboutUs.contact.en, aboutUs.contact.te)}
+              </p>
+
+              <a
+                href={`tel:+${SHOP_PHONE}`}
+                className="btn-big mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#15803d] text-white"
+              >
+                <span aria-hidden>📞</span>
+                {t(lang, labels.contactShop.en, labels.contactShop.te)}
+              </a>
+            </div>
+          </aside>
+        </div>
+      )}
+    </>
+  );
+}

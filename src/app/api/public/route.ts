@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { jsonWithCache } from "@/lib/cache-headers";
 import { isSupabaseConfigured } from "@/lib/env";
 
 export async function GET() {
@@ -23,7 +24,7 @@ export async function GET() {
 
     if (error) throw new Error(error.message);
 
-    return NextResponse.json({ ready: true, categories: data ?? [] });
+    return jsonWithCache({ ready: true, categories: data ?? [] }, "public");
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Failed to load", ready: false },

@@ -1,43 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ContractorDashboard } from "@/components/ContractorDashboard";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { SetupRequired } from "@/components/SetupRequired";
-import { getContractorSession, setContractorSession } from "@/lib/session";
+import { useCachedApi } from "@/hooks/useCachedApi";
+import { fetchContractorDashboard } from "@/lib/api-client";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { labels } from "@/lib/i18n";
-import type { ContractorDashboardData } from "@/lib/types";
+import { getContractorSession, setContractorSession } from "@/lib/session";
 
 export default function DashboardPage() {
   const params = useParams();
   const router = useRouter();
   const token = decodeURIComponent(params.token as string);
-  const [data, setData] = useState<ContractorDashboardData | null>(null);
-  const [error, setError] = useState<"invalid" | "setup" | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const session = getContractorSession();
     if (!session || session.token.toUpperCase() !== token.toUpperCase()) {
       setContractorSession(token);
     }
-
-    fetch(`/api/contractor/${encodeURIComponent(token)}`)
-      .then(async (res) => {
-        if (res.status === 503) {
-          setError("setup");
-          return;
-        }
-        if (!res.ok) {
-          setError("invalid");
-          return;
-        }
-        setData(await res.json());
-      })
-      .catch(() => setError("invalid"))
-      .finally(() => setLoading(false));
   }, [token]);
+
+  const fetcher = useCallback(
+    (force?: boolean) => fetchContractorDashboard(token, force),
+    [token]
+  );
+
+  const { data, loading, error } = useCachedApi(fetcher, {
+    watchTags: [CACHE_TAGS.CONTRACTOR, CACHE_TAGS.ADMIN],
+  });
+
+  const errorType = useMemo(() => {
+    if (!error || typeof error !== "object") return "invalid";
+    const status = (error as { status?: number }).status;
+    if (status === 503) return "setup";
+    return "invalid";
+  }, [error]);
 
   if (loading) {
     return (
@@ -47,7 +47,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (error === "setup") return <SetupRequired />;
+  if (errorType === "setup") return <SetupRequired />;
 
   if (error || !data) {
     return (
