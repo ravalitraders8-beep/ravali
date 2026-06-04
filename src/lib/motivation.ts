@@ -1,23 +1,20 @@
-/** Motivational copy for contractors — simple, encouraging, Telugu + English */
+/** Simple spoken Telugu for contractors — not bookish language */
 
 export const userMotivation = {
-  /** Main quote — intro splash */
   quote: {
-    en: "Your craft builds lasting homes — we celebrate you with gifts you truly deserve ✨",
-    te: "మీ చేతి వృత్తి నిలకడగా నిలుస్తుంది — దానికి తగిన బహుమతి మీ కోసం ✨",
+    en: "Your work matters — gifts from the shop are waiting for you ✨",
+    te: "మీ పని ముఖ్యం — షాప్ బహుమతులు మీ కోసం ఉన్నాయి ✨",
   },
-  /** Tagline — help panel & trade cards (matches Telugu logo) */
   tagline: {
-    en: "Built on trust — built for your lasting success.",
-    te: "నమ్మకంపై నిర్మించాం. నిలకడ కోసం అందిస్తున్నాం.",
+    en: "Built on trust — built for your success.",
+    te: "నమ్మకం మీద — మీ బాగుండడానికి.",
   },
-  /** Dashboard — not started yet */
   journey: {
-    en: "Take the first step — RAVALI walks with you toward your reward 🌱",
-    te: "మొదటి అడుగు వేయండి — మీ బహుమతి వైపు రవళి మీతో ఉంటుంది 🌱",
+    en: "Take the first step — RAVALI is with you 🌱",
+    te: "ఒక్క అడుగు వేయండి — రవళి మీతో ఉంటుంది 🌱",
   },
   footer: {
     en: "Quality is our promise — service is our goal.",
-    te: "నాణ్యత మా వాగ్దానం — సేవ మా లక్ష్యం.",
+    te: "మంచి సామాను — మంచి సర్వీస్.",
   },
 } as const;

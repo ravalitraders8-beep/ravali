@@ -8,7 +8,7 @@ import {
   isBagsCategory,
 } from "@/lib/category-period";
 import { getProgressStatus } from "@/lib/currency";
-import { labels, progressMessage, t } from "@/lib/i18n";
+import { labels, pickBilingual, progressMessage, t } from "@/lib/i18n";
 import { userMotivation } from "@/lib/motivation";
 import { useLang } from "@/context/LangContext";
 import type { Category, LeaderboardEntry } from "@/lib/types";
@@ -70,7 +70,7 @@ export function DashboardSummary({
           {notStarted ? (
             <>
               <p className="text-xl font-black text-[#1a2744]">
-                {t(lang, "Start your journey!", "మొదలు పెట్టండి!")}
+                {t(lang, "Start your journey!", "స్టార్ట్ చేయండి!")}
               </p>
               <p className="mt-0.5 text-base font-semibold text-gray-600">
                 {t(lang, userMotivation.journey.en, userMotivation.journey.te)}
@@ -79,12 +79,12 @@ export function DashboardSummary({
           ) : (
             <>
               <p className="text-sm font-bold uppercase tracking-wide text-gray-500">
-                {t(lang, "Your rank", "మీ rank")}
+                {t(lang, "Your rank", "మీ స్థానం")}
               </p>
               <p className="text-4xl font-black leading-none text-[#1a2744]">#{rank}</p>
               <p className="mt-1 text-base font-bold" style={{ color: category.color_hex }}>
                 {category.icon}{" "}
-                {lang === "te" ? category.name_telugu : category.name_english}
+                {pickBilingual(lang, category.name_english, category.name_telugu)}
               </p>
             </>
           )}

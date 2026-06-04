@@ -2,7 +2,7 @@
 
 import { formatQuantityAdded, isBagsCategory } from "@/lib/category-period";
 import { formatINR } from "@/lib/currency";
-import { labels, t } from "@/lib/i18n";
+import { labels, t, pickBilingual } from "@/lib/i18n";
 import { useLang } from "@/context/LangContext";
 import type { Category, Transaction } from "@/lib/types";
 
@@ -43,7 +43,7 @@ export function TransactionHistory({ transactions, category }: TransactionHistor
               <span className="text-3xl">{REASON_ICONS[i % REASON_ICONS.length]}</span>
               <div className="min-w-0 flex-1">
                 <p className="text-lg font-bold text-gray-800">
-                  {lang === "te" ? tx.reason_telugu : tx.reason_english}
+                  {pickBilingual(lang, tx.reason_english, tx.reason_telugu)}
                 </p>
                 <p className="text-base text-gray-500">
                   {new Date(tx.transaction_date).toLocaleDateString("te-IN")}

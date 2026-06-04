@@ -100,8 +100,8 @@ export function BilingualField({
       : teluguSource === "google"
         ? "🌐 Google"
         : teluguSource === "local"
-          ? "✨ auto"
-          : "✨ auto";
+          ? "📍 స్థానిక"
+          : "📍 స్థానిక";
 
   const inputClass = compact
     ? "mt-0.5 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm"

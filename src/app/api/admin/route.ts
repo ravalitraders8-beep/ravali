@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
       if (!name_english?.trim() || !phone?.trim()) {
         return NextResponse.json(
-          { message: "Please fill name and phone | పేరు మరియు ఫోన్ నమోదు చేయండి" },
+          { message: "Please fill name and phone | పేరు, ఫోన్ పెట్టండి" },
           { status: 400 }
         );
       }
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
 
       if (!village.english) {
         return NextResponse.json(
-          { message: "Please fill village | గ్రామం నమోదు చేయండి" },
+          { message: "Please fill village | ఊరు పెట్టండి" },
           { status: 400 }
         );
       }

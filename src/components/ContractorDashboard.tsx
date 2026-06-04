@@ -3,7 +3,7 @@
 import { ShopLogo } from "./ShopLogo";
 import { UserPageExtras, MobileHeaderLangToggle } from "./UserPageExtras";
 import { DashboardSummary } from "./DashboardSummary";
-import { labels, t } from "@/lib/i18n";
+import { labels, t, teluguLabel } from "@/lib/i18n";
 import { useLang } from "@/context/LangContext";
 import { ContactShopButton } from "./ContactShopButton";
 import { UserLeaderboard } from "./UserLeaderboard";
@@ -50,10 +50,10 @@ export function ContractorDashboard({ data }: ContractorDashboardProps) {
             {t(lang, labels.welcome.en, labels.welcome.te)} 👋
           </p>
           <h1 className="mt-1 truncate text-2xl font-black sm:text-3xl">
-            {contractor.name_telugu}
+            {teluguLabel(contractor.name_telugu)}
           </h1>
           <p className="mt-1 text-base font-semibold opacity-90">
-            📍 {contractor.village_telugu}
+            📍 {teluguLabel(contractor.village_telugu)}
           </p>
         </div>
       </header>

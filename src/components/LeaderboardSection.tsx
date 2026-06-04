@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { formatINR } from "@/lib/currency";
-import { labels, t } from "@/lib/i18n";
+import { labels, t, pickBilingual } from "@/lib/i18n";
 import { useLang } from "@/context/LangContext";
 import type { Category, LeaderboardEntry } from "@/lib/types";
 
@@ -82,7 +82,7 @@ export function LeaderboardSection({
       <div className="space-y-3">
         {top10.length === 0 ? (
           <p className="py-8 text-center text-xl text-gray-500">
-            {lang === "te" ? "ఇంకా ఎవరూ లేరు" : "No one yet"}
+            {t(lang, "No one yet", "ఇంకా ఎవరు లేరు")}
           </p>
         ) : (
           top10.map((entry) => {
@@ -99,7 +99,7 @@ export function LeaderboardSection({
                 <RankBadge rank={Number(entry.rank)} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xl font-black">
-                    {lang === "te" ? entry.name_telugu : entry.name_english}
+                    {pickBilingual(lang, entry.name_english, entry.name_telugu)}
                   </p>
                   {isCurrent && (
                     <span className="mt-1 inline-block rounded-full bg-yellow-400 px-3 py-0.5 text-sm font-bold">

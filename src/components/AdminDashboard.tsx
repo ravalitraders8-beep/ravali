@@ -26,7 +26,13 @@ import {
   periodStatus,
 } from "@/lib/category-period";
 import { useLang } from "@/context/LangContext";
+import { pickBilingual, t, teluguLabel } from "@/lib/i18n";
 import { transliterateToTelugu } from "@/lib/transliterate-client";
+import {
+  getDefaultAddContractorCategoryId,
+  resolveAddContractorCategoryId,
+  setDefaultAddContractorCategoryId,
+} from "@/lib/admin-defaults";
 import { clearAdminPinSession } from "@/lib/session";
 import {
   GIFT_IMAGE_PRESETS,
@@ -124,11 +130,33 @@ export function AdminDashboard() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [registrySearch, setRegistrySearch] = useState("");
   const [rewardsDraft, setRewardsDraft] = useState<Record<string, CategoryGift[]>>({});
+  const [defaultAddCategoryId, setDefaultAddCategoryId] = useState<string | null>(null);
   const contractorName = (c: Contractor) =>
-    lang === "te" ? c.name_telugu : c.name_english;
+    pickBilingual(lang, c.name_english, c.name_telugu);
+
+  useEffect(() => {
+    setDefaultAddCategoryId(getDefaultAddContractorCategoryId());
+  }, []);
+
+  const saveDefaultAddCategory = (categoryId: string) => {
+    setDefaultAddContractorCategoryId(categoryId);
+    setDefaultAddCategoryId(categoryId);
+    setNewContractor((p) => ({ ...p, category_id: categoryId }));
+  };
+
+  const resetNewContractorForm = (categoryId: string) => {
+    setNewContractor({
+      name_english: "",
+      name_telugu: "",
+      phone: "",
+      village_english: "",
+      village_telugu: "",
+      category_id: categoryId,
+    });
+  };
 
   const categoryName = (cat: Category) =>
-    lang === "te" ? cat.name_telugu : cat.name_english;
+    pickBilingual(lang, cat.name_english, cat.name_telugu);
 
   const activeContractors = useMemo(
     () => contractors.filter((c) => c.is_active),
@@ -486,7 +514,16 @@ export function AdminDashboard() {
       setRewardLevels((data.rewardLevels as RewardLevel[]) ?? []);
       setTransactions((data.transactions as Transaction[]) ?? []);
       setRewards((data.rewards as Array<Record<string, unknown>>) ?? []);
-      setNewContractor((p) => ({ ...p, category_id: p.category_id || cats[0]?.id || "" }));
+      const savedDefault = getDefaultAddContractorCategoryId();
+      if (savedDefault) setDefaultAddCategoryId(savedDefault);
+      const addCatId = resolveAddContractorCategoryId(
+        cats.map((c) => c.id),
+        savedDefault
+      );
+      setNewContractor((p) => ({
+        ...p,
+        category_id: p.category_id || addCatId,
+      }));
       const active = ((data.contractors as Contractor[]) ?? []).filter((c) => c.is_active);
       const defaultCat =
         cats.find((cat) => active.some((c) => c.category_id === cat.id))?.id ?? cats[0]?.id ?? "";
@@ -751,22 +788,43 @@ export function AdminDashboard() {
                     className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
                   />
                 </label>
-                <label className="block text-sm font-bold">
-                  {L("category")}
+                <div className="block text-sm font-bold">
+                  <span>{L("category")}</span>
                   <select
                     value={newContractor.category_id}
-                    onChange={(e) =>
-                      setNewContractor((p) => ({ ...p, category_id: e.target.value }))
-                    }
+                    onChange={(e) => saveDefaultAddCategory(e.target.value)}
                     className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
                   >
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {lang === "te" ? c.name_telugu : c.name_english}
+                        {pickBilingual(lang, c.name_english, c.name_telugu)}
+                        {defaultAddCategoryId === c.id ? " ★" : ""}
                       </option>
                     ))}
                   </select>
-                </label>
+                  <p className="mt-2 text-xs font-medium text-gray-600">
+                    {L("defaultCategoryHint")}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {categories.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => saveDefaultAddCategory(c.id)}
+                        className={`rounded-lg px-2 py-1 text-xs font-bold ${
+                          defaultAddCategoryId === c.id
+                            ? "bg-[#e85d00] text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-orange-100"
+                        }`}
+                        title={L("setDefaultCategory")}
+                      >
+                        {c.icon}{" "}
+                        {defaultAddCategoryId === c.id ? "★ " : ""}
+                        {pickBilingual(lang, c.name_english, c.name_telugu)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className="sm:col-span-2">
                   <BilingualField
                     englishLabel={L("village")}
@@ -807,14 +865,12 @@ export function AdminDashboard() {
                       village_telugu: village.telugu,
                     });
                     if (ok) {
-                      setNewContractor({
-                        name_english: "",
-                        name_telugu: "",
-                        phone: "",
-                        village_english: "",
-                        village_telugu: "",
-                        category_id: categories[0]?.id ?? "",
-                      });
+                      const keepCat =
+                        newContractor.category_id ||
+                        defaultAddCategoryId ||
+                        categories[0]?.id ||
+                        "";
+                      resetNewContractorForm(keepCat);
                     }
                   }}
                   className="btn-big sm:col-span-2 rounded-2xl bg-[#e85d00] text-white"
@@ -996,23 +1052,43 @@ export function AdminDashboard() {
                 </button>
                 {categories.map((cat) => {
                   const count = activeContractors.filter((c) => c.category_id === cat.id).length;
+                  const isDefaultAdd = defaultAddCategoryId === cat.id;
                   return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setCategoryFilter(cat.id)}
-                      className={`flex flex-col items-center rounded-2xl border-2 p-4 transition-colors ${
-                        categoryFilter === cat.id
-                          ? "border-[#e85d00] bg-orange-50"
-                          : "border-gray-100 bg-gray-50 hover:border-orange-200"
-                      }`}
-                    >
-                      <span className="text-3xl">{cat.icon}</span>
-                      <span className="mt-1 text-2xl font-black text-[#e85d00]">{count}</span>
-                      <span className="text-center text-xs font-bold text-gray-600">
-                        {categoryName(cat)}
-                      </span>
-                    </button>
+                    <div key={cat.id} className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setCategoryFilter(cat.id)}
+                        className={`flex w-full flex-col items-center rounded-2xl border-2 p-4 transition-colors ${
+                          categoryFilter === cat.id
+                            ? "border-[#e85d00] bg-orange-50"
+                            : "border-gray-100 bg-gray-50 hover:border-orange-200"
+                        }`}
+                      >
+                        <span className="text-3xl">{cat.icon}</span>
+                        <span className="mt-1 text-2xl font-black text-[#e85d00]">{count}</span>
+                        <span className="text-center text-xs font-bold text-gray-600">
+                          {categoryName(cat)}
+                        </span>
+                        {isDefaultAdd && (
+                          <span className="mt-1 text-[10px] font-bold text-[#e85d00]">
+                            ★ {L("defaultCategory")}
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => saveDefaultAddCategory(cat.id)}
+                        className={`absolute right-1 top-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                          isDefaultAdd
+                            ? "bg-[#e85d00] text-white"
+                            : "bg-white text-gray-500 shadow-sm ring-1 ring-gray-200"
+                        }`}
+                        title={L("setDefaultCategory")}
+                        aria-label={L("setDefaultCategory")}
+                      >
+                        ★
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -1063,7 +1139,7 @@ export function AdminDashboard() {
                         {c.categories
                           ? categoryName(c.categories as Category)
                           : categories.find((cat) => cat.id === c.category_id)?.icon}{" "}
-                        • {c.phone} • {lang === "te" ? c.village_telugu : c.village_english}
+                        • {c.phone} • {pickBilingual(lang, c.village_english, c.village_telugu)}
                       </p>
                       <p className="text-xs text-gray-400">
                         {L("date")}: {c.joined_date?.slice(0, 10) ?? "—"}
@@ -1161,7 +1237,7 @@ export function AdminDashboard() {
                   >
                     {TRANSACTION_REASONS.map((r, i) => (
                       <option key={r.en} value={i}>
-                        {lang === "te" ? r.te : r.en}
+                        {t(lang, r.en, r.te)}
                       </option>
                     ))}
                   </select>
@@ -1191,7 +1267,7 @@ export function AdminDashboard() {
             <Panel title={L("recentTx")}>
               {transactions.length === 0 ? (
                 <p className="py-8 text-center text-gray-500">
-                  {ta(lang, "No transactions yet", "ఇంకా మొత్తాలు లేవు")}
+                  {ta(lang, "No transactions yet", "ఇంకా మొత్తం లేదు")}
                 </p>
               ) : (
               transactions.slice(0, 20).map((tx) => {
@@ -1211,7 +1287,7 @@ export function AdminDashboard() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">
                         {c ? contractorName(c) : "—"} —{" "}
-                        {lang === "te" ? tx.reason_telugu : tx.reason_english}
+                        {pickBilingual(lang, tx.reason_english, tx.reason_telugu)}
                       </p>
                       <p className="text-xs text-gray-400">{tx.transaction_date?.slice(0, 10)}</p>
                     </div>
@@ -1251,8 +1327,8 @@ export function AdminDashboard() {
                   {i + 1}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-bold">{e.name_telugu}</p>
-                  <p className="text-xs text-gray-500">{e.category_telugu}</p>
+                  <p className="truncate font-bold">{teluguLabel(e.name_telugu)}</p>
+                  <p className="text-xs text-gray-500">{teluguLabel(e.category_telugu)}</p>
                 </div>
                 <span className="shrink-0 font-black">{formatINR(Number(e.total_amount))}</span>
               </div>
@@ -1316,7 +1392,7 @@ export function AdminDashboard() {
                 {ta(
                   lang,
                   "Set monthly target, period dates, and gifts per category. Contractors see the same gifts in the app.",
-                  "ప్రతి వర్గానికి లక్ష్యం, తేదీలు, బహుమతులు — app లో అలాగే కనిపిస్తాయి."
+                  "ప్రతి పనికి లక్ష్యం, తేదీలు, బహుమతులు — App లో అలాగే కనిపిస్తాయి."
                 )}
               </p>
               {categories.map((cat) => {
@@ -1377,7 +1453,7 @@ export function AdminDashboard() {
                         </p>
                         {giftRows.length === 0 ? (
                           <p className="py-4 text-center text-sm text-gray-500">
-                            {ta(lang, "No gifts yet — add rows below", "ఇంకా బహుమతులు లేవు")}
+                            {ta(lang, "No gifts yet — add rows below", "ఇంకా బహుమతులు లేదు")}
                           </p>
                         ) : (
                           <div className="max-h-80 space-y-2 overflow-y-auto">
@@ -1479,7 +1555,7 @@ export function AdminDashboard() {
                       {ta(
                         lang,
                         "Saves target, dates, and all gifts to database — contractors see this in the app.",
-                        "లక్ష్యం, తేదీలు, బహుమతులు డేటాబేస్‌లో సేవ్ — app లో కనిపిస్తాయి."
+                        "లక్ష్యం, తేదీలు, బహుమతులు సేవ్ — App లో కనిపిస్తాయి."
                       )}
                     </p>
                   </div>
@@ -1500,7 +1576,7 @@ export function AdminDashboard() {
                   {rewardLevels.map((l) => (
                     <option key={l.id} value={l.id}>
                       {l.icon}{" "}
-                      {lang === "te" ? l.level_name_telugu : l.level_name_english}
+                      {pickBilingual(lang, l.level_name_english, l.level_name_telugu)}
                     </option>
                   ))}
                 </select>

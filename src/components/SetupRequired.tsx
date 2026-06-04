@@ -28,7 +28,7 @@ export function SetupRequired() {
           href="/admin"
           className="btn-big flex w-full items-center justify-center gap-2 rounded-2xl border-4 border-[#e85d00] text-[#e85d00]"
         >
-          🔐 {lang === "te" ? "యజమాని" : "Admin"}
+          🔐 {t(lang, "Admin", "అడ్మిన్")}
         </Link>
       </div>
     </div>

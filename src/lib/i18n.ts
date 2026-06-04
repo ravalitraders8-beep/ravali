@@ -1,9 +1,25 @@
 import type { Lang } from "./types";
+import { displayLocalTelugu } from "./local-telugu";
 import { userMotivation } from "./motivation";
 
-/** Telugu-first labels — short, simple words for low-literacy users */
+/** Telugu toggle → always simple local Telugu (not educational / dictionary) */
 export function t(lang: Lang, en: string, te: string): string {
-  return lang === "te" ? te : en;
+  if (lang !== "te") return en;
+  const local = displayLocalTelugu(te);
+  return local || en;
+}
+
+/** DB / form Telugu → simple local wording for display */
+export function pickBilingual(lang: Lang, english: string, telugu: string): string {
+  if (lang === "te") {
+    const local = displayLocalTelugu(telugu);
+    return local || english;
+  }
+  return english;
+}
+
+export function teluguLabel(text: string): string {
+  return displayLocalTelugu(text) || text;
 }
 
 export const labels = {
@@ -12,7 +28,7 @@ export const labels = {
   thisMonthAmount: { en: "This Month", te: "ఈ నెల" },
   thisMonthBags: { en: "Bags This Month", te: "ఈ నెల బ్యాగులు" },
   monthlyTarget: { en: "Target", te: "లక్ష్యం" },
-  leaderboard: { en: "Winners", te: "విజేతలు" },
+  leaderboard: { en: "Winners", te: "టాప్" },
   myHistory: { en: "My Work", te: "మీ పని" },
   gifts: { en: "Gifts", te: "బహుమతులు" },
   masonGiftsHint: {
@@ -38,24 +54,24 @@ export const labels = {
   phoneLoginTitle: { en: "Member Login", te: "సభ్యుల లాగిన్" },
   phoneLoginHint: {
     en: "Enter the mobile number registered with the shop",
-    te: "షాప్‌లో నమోదు చేసిన ఫోన్ నంబర్ నమోదు చేయండి",
+    te: "షాప్‌లో నమోదు చేసిన ఫోన్ పెట్టండి",
   },
   phoneNumber: { en: "Mobile Number", te: "ఫోన్ నంబర్" },
   phoneLoginButton: { en: "View My Rewards", te: "నా బహుమతులు చూడండి" },
   invalidPhone: {
     en: "Enter a valid 10-digit mobile number",
-    te: "సరైన 10 అంకెల ఫోన్ నంబర్ నమోదు చేయండి",
+    te: "సరైన 10 అంకెల ఫోన్ పెట్టండి",
   },
   notMember: {
     en: "You are not a member of this company. Contact the shop.",
-    te: "మీరు ఈ కంపెనీ సభ్యులు కాదు. షాప్‌కు సంప్రదించండి.",
+    te: "మీరు ఈ షాప్ సభ్యులు కాదు. షాప్‌కు కాల్ చేయండి.",
   },
   loginFailed: {
     en: "Could not sign in. Try again.",
-    te: "లాగిన్ కాలేదు. మళ్ళీ ప్రయత్నించండి.",
+    te: "లాగిన్ కాలేదు. మళ్ళీ చూడండి.",
   },
   step1Phone: { en: "1. Install app on your phone", te: "① ఫోన్‌లో App జోడించండి" },
-  step2Phone: { en: "2. Enter your registered number", te: "② నమోదు ఫోన్ నంబర్ నమోదు చేయండి" },
+  step2Phone: { en: "2. Enter your registered number", te: "② నమోదు ఫోన్ పెట్టండి" },
   step3Phone: { en: "3. See your rewards", te: "③ మీ బహుమతులు చూడండి" },
   installRequiredTitle: { en: "Install App First", te: "ముందు App జోడించండి" },
   installRequiredBody: {
@@ -68,17 +84,17 @@ export const labels = {
   },
   installDesktopHint: {
     en: "Please open this site on your mobile phone to install and sign in.",
-    te: "దయచేసి మొబైల్ ఫోన్‌లో తెరిచి App జోడించండి.",
+    te: "మొబైల్ లో తెరిచి App జోడించండి.",
   },
   backToLogin: { en: "Back to login", te: "లాగిన్‌కు వెనుక" },
-  welcome: { en: "Hello", te: "నమస్కారం" },
+  welcome: { en: "Hello", te: "నమస్తే" },
   you: { en: "You", te: "మీరు" },
   allCategories: { en: "All", te: "అందరు" },
   noHistory: { en: "Nothing yet this month", te: "ఈ నెల ఇంకా లేదు" },
-  setupTitle: { en: "Shop Not Ready", te: "షాప్ ఇంకా సిద్ధం కాలేదు" },
+  setupTitle: { en: "Shop Not Ready", te: "షాప్ ఇంకా రెడీ కాలేదు" },
   setupHint: {
     en: "Please contact the shop",
-    te: "దయచేసి షాప్‌కు సంప్రదించండి",
+    te: "షాప్‌కు కాల్ చేయండి",
   },
   installAppTitle: { en: "Add App to Phone", te: "ఫోన్‌లో App జోడించండి" },
   installAppBody: {
@@ -100,10 +116,10 @@ export const labels = {
   installIos1: { en: "1. Tap Share ⎙ at bottom of Safari", te: "① Safari కింద Share ⎙ ను ట్యాప్ చేయండి" },
   installIos2: { en: "2. Tap “Add to Home Screen”", te: "② “Add to Home Screen” ట్యాప్ చేయండి" },
   installIos3: { en: "3. Tap Add — done! ✅", te: "③ Add ట్యాప్ — అయిపోయింది! ✅" },
-  achieved: { en: "Target reached!", te: "లక్ష్యం చేరుకున్నారు!" },
-  almostThere: { en: "Almost there!", te: "దగ్గరగా ఉన్నారు!" },
-  keepGoing: { en: "Keep going!", te: "ముందుకు సాగండి!" },
-  startNow: { en: "Start now!", te: "ఇప్పుడు ప్రారంభించండి!" },
+  achieved: { en: "Target reached!", te: "లక్ష్యం చేరారు!" },
+  almostThere: { en: "Almost there!", te: "దగ్గరలో ఉన్నారు!" },
+  keepGoing: { en: "Keep going!", te: "ముందుకు పోండి!" },
+  startNow: { en: "Start now!", te: "ఇప్పుడే స్టార్ట్ చేయండి!" },
   motivationQuote: userMotivation.quote,
   motivationTagline: userMotivation.tagline,
   motivationJourney: userMotivation.journey,

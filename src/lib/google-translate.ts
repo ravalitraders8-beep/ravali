@@ -8,8 +8,8 @@ export { isGoogleTranslateConfigured };
 const TRANSLATE_URL = "https://translation.googleapis.com/language/translate/v2";
 
 /**
- * Google Cloud Translation API — English → Telugu (same engine as translate.google.com).
- * Requires GOOGLE_TRANSLATE_API_KEY in .env (enable Cloud Translation API in Google Cloud).
+ * Google Cloud Translation — used only for short English phrases (not names/villages).
+ * Names use local spoken transliteration in transliterate.ts.
  */
 export async function translateEnglishToTeluguGoogle(
   text: string

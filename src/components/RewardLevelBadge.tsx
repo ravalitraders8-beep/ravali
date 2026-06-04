@@ -1,6 +1,7 @@
 "use client";
 
 import { useLang } from "@/context/LangContext";
+import { pickBilingual } from "@/lib/i18n";
 import type { RewardLevel } from "@/lib/types";
 
 interface RewardLevelBadgeProps {
@@ -18,10 +19,10 @@ export function RewardLevelBadge({ level }: RewardLevelBadgeProps) {
       <span className="text-6xl">{level.icon}</span>
       <div>
         <p className="text-2xl font-black text-gray-900">
-          {lang === "te" ? level.level_name_telugu : level.level_name_english}
+          {pickBilingual(lang, level.level_name_english, level.level_name_telugu)}
         </p>
         <p className="mt-1 text-lg font-bold text-[#e85d00]">
-          {lang === "te" ? level.reward_description_telugu : level.reward_description_english}
+          {pickBilingual(lang, level.reward_description_english, level.reward_description_telugu)}
         </p>
       </div>
     </div>

@@ -105,8 +105,8 @@ export const TRANSACTION_REASONS = [
   { en: "New Customer", te: "కొత్త కస్టమర్" },
   { en: "Large Order", te: "పెద్ద ఆర్డర్" },
   { en: "Special Bonus", te: "స్పెషల్ బోనస్" },
-  { en: "Festival Gift", te: "పండుగ గిఫ్ట్" },
-  { en: "Target Bonus", te: "లక్ష్య బోనస్" },
+  { en: "Festival Gift", te: "పండుగ బహుమతి" },
+  { en: "Target Bonus", te: "లక్ష్యం బోనస్" },
 ] as const;
 
 export type Lang = "en" | "te";

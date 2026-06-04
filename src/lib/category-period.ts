@@ -79,14 +79,14 @@ export function periodStatus(
 export function periodOverMessage(lang: Lang): { en: string; te: string } {
   return {
     en: "This period is over. Last month/target period has ended. Update dates in Targets tab or wait for the new period.",
-    te: "ఈ కాలం ముగిసింది. గత నెల/లక్ష్య కాలం అయిపోయింది. లక్ష్యాలు ట్యాబ్‌లో తేదీలు మార్చండి.",
+    te: "ఈ కాలం అయిపోయింది. లక్ష్యం ట్యాబ్ లో తేదీలు మార్చండి.",
   };
 }
 
 export function periodNotStartedMessage(lang: Lang): { en: string; te: string } {
   return {
     en: "This period has not started yet. Check start date in Targets.",
-    te: "ఈ కాలం ఇంకా మొదలు కాలేదు. లక్ష్యాలు ట్యాబ్‌లో ప్రారంభ తేదీ చూడండి.",
+    te: "ఇంకా మొదలు కాలేదు. లక్ష్యం ట్యాబ్ చూడండి.",
   };
 }
 

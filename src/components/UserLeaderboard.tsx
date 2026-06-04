@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { formatINR } from "@/lib/currency";
-import { labels, t } from "@/lib/i18n";
+import { labels, t, pickBilingual } from "@/lib/i18n";
 import { useLang } from "@/context/LangContext";
 import type { Category, LeaderboardEntry } from "@/lib/types";
 
@@ -50,14 +50,14 @@ export function UserLeaderboard({
           </h2>
           <p className="text-sm font-bold text-gray-500">
             {category.icon}{" "}
-            {lang === "te" ? category.name_telugu : category.name_english}
+            {pickBilingual(lang, category.name_english, category.name_telugu)}
           </p>
         </div>
       </div>
 
       {ranked.length === 0 ? (
         <p className="py-6 text-center text-base font-semibold text-gray-500">
-          {t(lang, "No winners yet this month", "ఈ నెల ఇంకా ఎవరూ లేరు")}
+          {t(lang, "No winners yet this month", "ఈ నెల ఇంకా ఎవరు లేరు")}
         </p>
       ) : (
         <ul className="space-y-2">
@@ -81,7 +81,7 @@ export function UserLeaderboard({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-lg font-black text-[#1a2744]">
-                    {lang === "te" ? entry.name_telugu : entry.name_english}
+                    {pickBilingual(lang, entry.name_english, entry.name_telugu)}
                   </p>
                   {isYou && (
                     <span className="text-sm font-bold text-yellow-700">

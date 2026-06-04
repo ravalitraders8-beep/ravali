@@ -1,4 +1,5 @@
 import type { Category } from "./types";
+import { displayLocalTelugu } from "@/lib/local-telugu";
 import { userMotivation } from "@/lib/motivation";
 
 export type CategoryKey = "painter" | "electrician" | "plumber" | "mason" | "carpenter";
@@ -137,9 +138,9 @@ export function getCategoryWatermarkLines(category: Category, lang: "en" | "te")
   if (lang === "te") {
     return [
       "రవళి ట్రేడర్స్",
-      content.title.te,
-      ...content.products.slice(0, 3).map((p) => p.te),
-      content.shopPromise.te,
+      displayLocalTelugu(content.title.te),
+      ...content.products.slice(0, 3).map((p) => displayLocalTelugu(p.te)),
+      displayLocalTelugu(content.shopPromise.te),
     ];
   }
   return [

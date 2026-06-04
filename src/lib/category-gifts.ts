@@ -1,4 +1,5 @@
 import { isBagsCategory, formatTargetValueBilingual } from "@/lib/category-period";
+import { simplifyTeluguToLocal } from "@/lib/local-telugu";
 import { sanitizeTeluguOutput } from "@/lib/transliterate";
 import type { Category, CategoryGift, Lang } from "./types";
 
@@ -18,7 +19,7 @@ const FALLBACK_MASON: CategoryGift[] = [
     name_english: "TV Gift",
     name_telugu: "టీవీ బహుమతి",
     description_english: "LED TV for top mason partners",
-    description_telugu: "అత్యుత్తమ మేస్త్రీలకు LED TV",
+    description_telugu: "మంచి మేస్త్రీలకు టీవీ",
     image_src: "/gifts/mason-tv.svg",
   },
   {
@@ -58,7 +59,7 @@ function normalizeGift(raw: unknown): CategoryGift | null {
   let name_telugu = String(g.name_telugu ?? "").trim();
   if (!name_english && name_telugu) name_english = name_telugu;
   if (!name_telugu && name_english) name_telugu = name_english;
-  name_telugu = sanitizeTeluguOutput(name_telugu);
+  name_telugu = simplifyTeluguToLocal(sanitizeTeluguOutput(name_telugu));
   const image_src = String(g.image_src ?? "/gifts/mason-design-kit.svg").trim();
   if (!min_value || min_value < 1 || !name_english) return null;
   return {
@@ -148,14 +149,14 @@ export function validateRewardsDraft(
     return {
       ok: false,
       message:
-        "Each gift needs a name and min value | ప్రతి బహుమతికి పేరు మరియు కనీస మొత్తం కావాలి",
+        "Each gift needs a name and min value | ప్రతి బహుమతికి పేరు, కనీసం కావాలి",
     };
   }
   for (const g of rewards) {
     if (!g.name_english?.trim() && !g.name_telugu?.trim()) {
       return {
         ok: false,
-        message: "Gift name is required | బహుమతి పేరు నమోదు చేయండి",
+        message: "Gift name is required | బహుమతి పేరు పెట్టండి",
       };
     }
     if (!g.min_value || g.min_value < 1) {

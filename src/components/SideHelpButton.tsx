@@ -9,7 +9,7 @@ import { formatGiftThreshold, getCategoryGifts } from "@/lib/category-gifts";
 import { aboutUs } from "@/lib/about-us";
 import { SHOP_PHONE, LOGO_EN_PATH, LOGO_TE_PATH } from "@/lib/constants";
 import { userMotivation } from "@/lib/motivation";
-import { labels, t } from "@/lib/i18n";
+import { labels, t, pickBilingual } from "@/lib/i18n";
 import { useLang } from "@/context/LangContext";
 import type { Category } from "@/lib/types";
 
@@ -42,7 +42,7 @@ export function SideHelpButton({ bottomOffset = "bottom-24", category }: SideHel
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label={t(lang, "Help", "సహాయం")}
+        aria-label={t(lang, "Help", "హెల్ప్")}
         className={`fixed right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#1a2744] text-2xl font-black text-white shadow-lg active:scale-95 ${bottomOffset}`}
       >
         <span className="leading-none" aria-hidden>
@@ -54,7 +54,7 @@ export function SideHelpButton({ bottomOffset = "bottom-24", category }: SideHel
         <div className="fixed inset-0 z-[70] flex justify-end">
           <button
             type="button"
-            aria-label={t(lang, "Close", "మూసివేయండి")}
+            aria-label={t(lang, "Close", "మూసు")}
             className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
             onClick={() => setOpen(false)}
           />
@@ -71,7 +71,7 @@ export function SideHelpButton({ bottomOffset = "bottom-24", category }: SideHel
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide opacity-80">
-                    {t(lang, "About Us", "మా గురించి")}
+                    {t(lang, "About Us", "మా షాప్")}
                   </p>
                   <h2 id="about-us-title" className="mt-1 text-xl font-black">
                     {trade
@@ -83,7 +83,7 @@ export function SideHelpButton({ bottomOffset = "bottom-24", category }: SideHel
                   type="button"
                   onClick={() => setOpen(false)}
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 text-xl font-bold"
-                  aria-label={t(lang, "Close", "మూసివేయండి")}
+                  aria-label={t(lang, "Close", "మూసు")}
                 >
                   ×
                 </button>
@@ -105,7 +105,7 @@ export function SideHelpButton({ bottomOffset = "bottom-24", category }: SideHel
                       className="text-xl font-black"
                       style={{ color: category?.color_hex ?? "#e85d00" }}
                     >
-                      {lang === "te" ? category?.name_telugu : category?.name_english}
+                      {pickBilingual(lang, category?.name_english ?? "", category?.name_telugu ?? "")}
                     </p>
                   </div>
 
@@ -114,7 +114,7 @@ export function SideHelpButton({ bottomOffset = "bottom-24", category }: SideHel
                   </p>
 
                   <h3 className="mt-6 text-sm font-black uppercase tracking-wide text-[#1a2744]">
-                    {t(lang, "What We Have", "మా దగ్గర ఏమి ఉంది")}
+                    {t(lang, "What We Have", "మా దగ్గర ఏముంది")}
                   </h3>
                   <ul className="mt-3 grid grid-cols-2 gap-2">
                     {trade.products.map((p) => (
@@ -160,7 +160,7 @@ export function SideHelpButton({ bottomOffset = "bottom-24", category }: SideHel
                           {formatGiftThreshold(lang, category, g.min_value)}
                         </span>
                         <span>
-                          {lang === "te" ? g.name_telugu : g.name_english}
+                          {pickBilingual(lang, g.name_english, g.name_telugu)}
                         </span>
                       </li>
                     ))}

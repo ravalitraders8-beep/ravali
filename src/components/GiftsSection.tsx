@@ -10,7 +10,7 @@ import {
 } from "@/lib/category-gifts";
 import { isBagsCategory } from "@/lib/category-period";
 import { formatINR } from "@/lib/currency";
-import { labels, t } from "@/lib/i18n";
+import { labels, t, pickBilingual } from "@/lib/i18n";
 import { useLang } from "@/context/LangContext";
 import type { Category } from "@/lib/types";
 
@@ -54,7 +54,7 @@ function CategoryGiftCard({
       >
         <Image
           src={gift.image_src}
-          alt={lang === "te" ? gift.name_telugu : gift.name_english}
+          alt={pickBilingual(lang, gift.name_english, gift.name_telugu)}
           width={72}
           height={72}
           className="h-full w-full object-contain"
@@ -71,16 +71,18 @@ function CategoryGiftCard({
 
       <div className="min-w-0 flex-1">
         <p className="text-lg font-black text-[#1a2744]">
-          {lang === "te" ? gift.name_telugu : gift.name_english}
+          {pickBilingual(lang, gift.name_english, gift.name_telugu)}
         </p>
         <p className="text-sm font-bold text-[#e85d00]">
           {formatGiftThreshold(lang, category, gift.min_value)}
         </p>
         {(gift.description_english || gift.description_telugu) && (
           <p className="mt-0.5 text-sm text-gray-600">
-            {lang === "te"
-              ? gift.description_telugu ?? gift.description_english
-              : gift.description_english}
+            {pickBilingual(
+              lang,
+              gift.description_english ?? "",
+              gift.description_telugu ?? gift.description_english ?? ""
+            )}
           </p>
         )}
 
@@ -151,7 +153,7 @@ export function GiftsSection({ category, monthlyAmount }: GiftsSectionProps) {
         <p className="mb-4 rounded-xl bg-[#1a2744]/5 px-4 py-3 text-center text-sm font-bold text-[#1a2744]">
           {t(lang, labels.nextCategoryGift.en, labels.nextCategoryGift.te)
             .replace("{value}", formatGiftThreshold(lang, category, nextGift.min_value))
-            .replace("{name}", lang === "te" ? nextGift.name_telugu : nextGift.name_english)}
+            .replace("{name}", pickBilingual(lang, nextGift.name_english, nextGift.name_telugu))}
         </p>
       )}
 
