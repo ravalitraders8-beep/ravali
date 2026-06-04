@@ -2,9 +2,10 @@ import type { Lang } from "./types";
 import { displayLocalTelugu } from "./local-telugu";
 
 /** Admin UI — Telugu toggle shows simple local Telugu only */
-export function ta(lang: Lang, en: string, te: string): string {
+export function ta(lang: Lang, en: string, te?: string): string {
   if (lang !== "te") return en;
-  return displayLocalTelugu(te) || te;
+  const teText = te ?? en;
+  return displayLocalTelugu(teText) || teText;
 }
 
 export const adminLabels = {
@@ -29,10 +30,53 @@ export const adminLabels = {
   categoryTargets: { en: "Targets & Gifts", te: "లక్ష్యం & బహుమతులు" },
   rewardsColumn: { en: "Gifts for this category", te: "ఈ పని బహుమతులు" },
   minToUnlock: { en: "Position (1 = 1st)", te: "స్థానం (1 = మొదటి)" },
+  selectRank: { en: "Leaderboard rank", te: "స్థానం ఎంచుకోండి" },
+  giftDesign: { en: "Gift design", te: "బహుమతి డిజైన్" },
+  giftPreview: { en: "App preview", te: "App లో ఇలా కనిపిస్తుంది" },
+  giftPlanHint: {
+    en: "Each card can have a different target. Members unlock only their rank's gift after reaching that card's target.",
+    te: "ప్రతి కార్డ్ లో వేరే లక్ష్యం పెట్టవచ్చు. ఆ లక్ష్యం చేరితే మీ స్థానం బహుమతి మాత్రమే.",
+  },
+  duplicateRank: {
+    en: "This rank is already used — choose another",
+    te: "ఈ స్థానం ఇప్పటికే ఉంది — వేరే స్థానం ఎంచుకోండి",
+  },
+  rankUsed: { en: "taken", te: "ఇప్పటికే" },
+  noGiftsYet: {
+    en: "No gifts yet — add a rank below",
+    te: "ఇంకా బహుమతులు లేవు — కింద జోడించండి",
+  },
+  giftCardTarget: { en: "Monthly target", te: "లక్ష్యం" },
+  giftCardUnlock: {
+    en: "{rank} — unlocks after {target}",
+    te: "{rank} — {target} చేరితే బహుమతి",
+  },
+  targetPeriodSummary: {
+    en: "Period target: {target}",
+    te: "ఈ కాలం లక్ష్యం: {target}",
+  },
   giftNameEn: { en: "Gift name (English)", te: "బహుమతి పేరు (English)" },
   giftNameTe: { en: "Gift name (Telugu)", te: "బహుమతి పేరు (తెలుగు)" },
+  giftPlanEn: {
+    en: "Plan note (English) — type freely",
+    te: "ప్లాన్ (English) — మీరు రాయండి",
+  },
+  giftPlanTe: {
+    en: "Plan note (Telugu)",
+    te: "ప్లాన్ (తెలుగు)",
+  },
+  saveCard: { en: "Save", te: "సేవ్" },
+  selectGiftDeliver: { en: "Gift to deliver", te: "ఇచ్చే బహుమతి" },
   giftImage: { en: "Image", te: "ఫోటో" },
   addGiftRow: { en: "Add gift", te: "బహుమతి జోడించు" },
+  addTargetAndGift: {
+    en: "Add target & gift",
+    te: "లక్ష్యం & బహుమతి జోడించు",
+  },
+  giftCardTitle: {
+    en: "Target & gift",
+    te: "లక్ష్యం & బహుమతి",
+  },
   savePlan: { en: "Save target & gifts", te: "లక్ష్యం & బహుమతులు సేవ్" },
   giftRemoved: { en: "Gift removed and saved", te: "బహుమతి తీసి సేవ్ చేశారు" },
   confirmRemoveGift: {
@@ -45,6 +89,7 @@ export const adminLabels = {
   download: { en: "Download Card", te: "కార్డ్ డౌన్‌లోడ్" },
   deactivate: { en: "Deactivate", te: "ఆఫ్ చేయి" },
   phone: { en: "Phone", te: "ఫోన్" },
+  callMember: { en: "Call", te: "కాల్ చేయి" },
   category: { en: "Category", te: "పని" },
   amount: { en: "Amount (₹)", te: "మొత్తం (₹)" },
   reason: { en: "Reason", te: "కారణం" },
@@ -149,3 +194,10 @@ export const adminLabels = {
   },
   defaultCategoryActive: { en: "Default for new members", te: "కొత్త సభ్యులకు డిఫాల్ట్" },
 };
+
+/** Safe label lookup — defined after adminLabels for stable client bundles */
+export function adminLabel(lang: Lang, key: keyof typeof adminLabels): string {
+  const entry = adminLabels[key];
+  if (!entry?.en) return String(key);
+  return ta(lang, entry.en, entry.te ?? entry.en);
+}

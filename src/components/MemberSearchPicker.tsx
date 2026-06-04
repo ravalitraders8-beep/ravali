@@ -37,8 +37,11 @@ export function MemberSearchPicker({
   emptyMessage,
 }: MemberSearchPickerProps) {
   const { lang } = useLang();
-  const L = (key: keyof typeof adminLabels) =>
-    ta(lang, adminLabels[key].en, adminLabels[key].te);
+  const L = (key: keyof typeof adminLabels) => {
+    const entry = adminLabels[key];
+    if (!entry?.en) return String(key);
+    return ta(lang, entry.en, entry.te ?? entry.en);
+  };
 
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");

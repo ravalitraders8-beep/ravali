@@ -3,16 +3,15 @@
 import Image from "next/image";
 import { getContractorCategoryRank } from "@/lib/category-about";
 import {
-  formatGiftPosition,
   formatGiftThreshold,
+  getAchievementPercentForGift,
   getCategoryGifts,
   getGiftForRank,
   getUnlockedGiftForContractor,
   isGiftUnlockedForContractor,
-  isTargetReached,
+  isMonthlyTargetReached,
   resolveGiftPosition,
   sortGiftsByPosition,
-  usesLegacyBagThresholds,
   type CategoryGift,
 } from "@/lib/category-gifts";
 import { labels, t, pickBilingual } from "@/lib/i18n";
@@ -22,7 +21,6 @@ import type { Category, LeaderboardEntry } from "@/lib/types";
 interface GiftsSectionProps {
   category: Category;
   monthlyAmount: number;
-  achievementPercent: number;
   contractorId: string;
   leaderboard: LeaderboardEntry[];
 }
@@ -32,21 +30,20 @@ function CategoryGiftCard({
   category,
   gifts,
   rank,
-  achievementPercent,
+  monthlyAmount,
 }: {
   gift: CategoryGift;
   category: Category;
   gifts: CategoryGift[];
   rank: number | null;
-  achievementPercent: number;
+  monthlyAmount: number;
 }) {
   const { lang } = useLang();
   const position = resolveGiftPosition(gift, gifts);
-  const unlocked = isGiftUnlockedForContractor(gift, category, rank, achievementPercent);
+  const unlocked = isGiftUnlockedForContractor(gift, category, rank, monthlyAmount);
   const isYourSlot = rank !== null && position === rank;
-  const targetReached = isTargetReached(achievementPercent);
-  const legacy = usesLegacyBagThresholds(gifts);
-  const pct = Math.min(100, Math.round(achievementPercent));
+  const targetReached = isMonthlyTargetReached(monthlyAmount, gift, category);
+  const pct = Math.min(100, Math.round(getAchievementPercentForGift(monthlyAmount, gift, category)));
 
   let lockHint = "";
   if (!unlocked) {
@@ -97,9 +94,7 @@ function CategoryGiftCard({
           {pickBilingual(lang, gift.name_english, gift.name_telugu)}
         </p>
         <p className="text-sm font-bold text-[#e85d00]">
-          {legacy
-            ? formatGiftThreshold(lang, category, gift.min_value)
-            : formatGiftPosition(lang, position)}
+          {formatGiftThreshold(lang, category, gift)}
         </p>
         {(gift.description_english || gift.description_telugu) && (
           <p className="mt-0.5 text-sm text-gray-600">
@@ -137,11 +132,10 @@ function CategoryGiftCard({
   );
 }
 
-/** One gift per leaderboard position — unlocks only when target is met at that rank */
+/** One gift per leaderboard position — unlocks when that row's target is met at that rank */
 export function GiftsSection({
   category,
-  monthlyAmount: _monthlyAmount,
-  achievementPercent,
+  monthlyAmount,
   contractorId,
   leaderboard,
 }: GiftsSectionProps) {
@@ -149,7 +143,7 @@ export function GiftsSection({
   const gifts = sortGiftsByPosition(getCategoryGifts(category));
   const rank = getContractorCategoryRank(contractorId, category, leaderboard);
   const yourGift = getGiftForRank(category, rank);
-  const unlockedGift = getUnlockedGiftForContractor(category, rank, achievementPercent);
+  const unlockedGift = getUnlockedGiftForContractor(category, rank, monthlyAmount);
 
   if (gifts.length === 0) {
     return null;
@@ -199,7 +193,7 @@ export function GiftsSection({
             category={category}
             gifts={gifts}
             rank={rank}
-            achievementPercent={achievementPercent}
+            monthlyAmount={monthlyAmount}
           />
         ))}
       </div>

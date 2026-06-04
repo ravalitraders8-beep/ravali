@@ -8,6 +8,8 @@ import { useLang } from "@/context/LangContext";
 import { ContactShopButton } from "./ContactShopButton";
 import { UserLeaderboard } from "./UserLeaderboard";
 import { GiftsSection } from "./GiftsSection";
+import { getContractorCategoryRank } from "@/lib/category-about";
+import { getAchievementPercent, getTargetForRank } from "@/lib/category-gifts";
 import type { ContractorDashboardData } from "@/lib/types";
 
 interface ContractorDashboardProps {
@@ -18,10 +20,9 @@ export function ContractorDashboard({ data }: ContractorDashboardProps) {
   const { lang } = useLang();
   const { contractor, category, monthlyAmount, leaderboard } = data;
 
-  const achievementPercent =
-    category.monthly_target_amount > 0
-      ? Math.round((monthlyAmount / Number(category.monthly_target_amount)) * 1000) / 10
-      : 0;
+  const rank = getContractorCategoryRank(contractor.id, category, leaderboard);
+  const progressTarget = getTargetForRank(category, rank);
+  const achievementPercent = getAchievementPercent(monthlyAmount, progressTarget);
 
   return (
     <div className="relative min-h-screen bg-[#f4f6f9] pb-36">
@@ -63,7 +64,7 @@ export function ContractorDashboard({ data }: ContractorDashboardProps) {
           contractorId={contractor.id}
           category={category}
           monthlyAmount={monthlyAmount}
-          target={Number(category.monthly_target_amount)}
+          target={progressTarget}
           achievementPercent={achievementPercent}
           leaderboard={leaderboard}
         />
@@ -77,7 +78,6 @@ export function ContractorDashboard({ data }: ContractorDashboardProps) {
         <GiftsSection
           category={category}
           monthlyAmount={monthlyAmount}
-          achievementPercent={achievementPercent}
           contractorId={contractor.id}
           leaderboard={leaderboard}
         />

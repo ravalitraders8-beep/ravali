@@ -5,6 +5,8 @@ import type { Category, CategoryGift, Lang } from "./types";
 
 export type { CategoryGift };
 
+export const MAX_GIFT_RANKS = 10;
+
 export const GIFT_IMAGE_PRESETS: { value: string; labelEn: string; labelTe: string }[] = [
   { value: "/gifts/mason-tv.svg", labelEn: "TV", labelTe: "టీవీ" },
   { value: "/gifts/mason-grinder.svg", labelEn: "Grinder", labelTe: "గ్రైండర్" },
@@ -19,6 +21,7 @@ const FALLBACK_MASON: CategoryGift[] = [
   {
     id: "tv",
     min_value: 1,
+    target_amount: 600,
     name_english: "TV Gift",
     name_telugu: "టీవీ బహుమతి",
     description_english: "1st place — after you reach target",
@@ -28,6 +31,7 @@ const FALLBACK_MASON: CategoryGift[] = [
   {
     id: "grinder",
     min_value: 2,
+    target_amount: 300,
     name_english: "Mixer Grinder",
     name_telugu: "మిక్సీ గ్రైండర్",
     description_english: "2nd place — after you reach target",
@@ -37,6 +41,7 @@ const FALLBACK_MASON: CategoryGift[] = [
   {
     id: "iron-box",
     min_value: 3,
+    target_amount: 200,
     name_english: "Iron Box",
     name_telugu: "ఇనుము బాక్స్",
     description_english: "3rd place — after you reach target",
@@ -46,6 +51,7 @@ const FALLBACK_MASON: CategoryGift[] = [
   {
     id: "design-kit",
     min_value: 4,
+    target_amount: 100,
     name_english: "Design Kit",
     name_telugu: "డిజైన్ కిట్",
     description_english: "4th place — after you reach target",
@@ -64,10 +70,14 @@ function normalizeGift(raw: unknown): CategoryGift | null {
   if (!name_telugu && name_english) name_telugu = name_english;
   name_telugu = simplifyTeluguToLocal(sanitizeTeluguOutput(name_telugu));
   const image_src = String(g.image_src ?? "/gifts/mason-design-kit.svg").trim();
+  const targetRaw = Number(g.target_amount);
+  const target_amount =
+    Number.isFinite(targetRaw) && targetRaw > 0 ? Math.round(targetRaw) : undefined;
   if (!min_value || min_value < 1 || !name_english) return null;
   return {
     id: String(g.id ?? `gift-${min_value}-${name_english.slice(0, 8)}`),
     min_value,
+    ...(target_amount ? { target_amount } : {}),
     name_english,
     name_telugu,
     description_english: String(g.description_english ?? "").trim() || undefined,
@@ -135,8 +145,65 @@ export function sortGiftsByPosition(gifts: CategoryGift[]): CategoryGift[] {
   );
 }
 
+/** Bags or ₹ required for this gift row. */
+export function getGiftTargetAmount(gift: CategoryGift, category: Category): number {
+  const gifts = getCategoryGifts(category);
+  if (usesLegacyBagThresholds(gifts)) {
+    return Math.max(1, Math.round(gift.min_value));
+  }
+  const stored = Number(gift.target_amount);
+  if (stored > 0) return Math.round(stored);
+  return Math.max(0, Math.round(Number(category.monthly_target_amount) || 0));
+}
+
+export function getAchievementPercent(monthlyAmount: number, target: number): number {
+  if (target <= 0) return 0;
+  return Math.round((monthlyAmount / target) * 1000) / 10;
+}
+
+export function getAchievementPercentForGift(
+  monthlyAmount: number,
+  gift: CategoryGift,
+  category: Category
+): number {
+  return getAchievementPercent(monthlyAmount, getGiftTargetAmount(gift, category));
+}
+
+/** Target for member's rank gift, else category default. */
+export function getTargetForRank(
+  category: Category,
+  rank: number | null
+): number {
+  const gift = getGiftForRank(category, rank);
+  if (gift) return getGiftTargetAmount(gift, category);
+  return Math.max(0, Math.round(Number(category.monthly_target_amount) || 0));
+}
+
+/** Max gift target — stored on category for leaderboard SQL fallback. */
+export function deriveCategoryMonthlyTarget(
+  rewards: CategoryGift[],
+  category: Category
+): number {
+  if (rewards.length === 0) {
+    return Math.max(0, Math.round(Number(category.monthly_target_amount) || 0));
+  }
+  return Math.max(
+    ...rewards.map((g) => getGiftTargetAmount(g, category)),
+    0
+  );
+}
+
 export function isTargetReached(achievementPercent: number): boolean {
   return achievementPercent >= 100;
+}
+
+export function isMonthlyTargetReached(
+  monthlyAmount: number,
+  gift: CategoryGift,
+  category: Category
+): boolean {
+  const target = getGiftTargetAmount(gift, category);
+  return target > 0 && monthlyAmount >= target;
 }
 
 /** Only the gift for this rank unlocks — not every lower tier. */
@@ -144,21 +211,22 @@ export function isGiftUnlockedForContractor(
   gift: CategoryGift,
   category: Category,
   rank: number | null,
-  achievementPercent: number
+  monthlyAmount: number
 ): boolean {
-  if (rank === null || !isTargetReached(achievementPercent)) return false;
+  if (rank === null) return false;
   const gifts = getCategoryGifts(category);
-  return resolveGiftPosition(gift, gifts) === rank;
+  if (resolveGiftPosition(gift, gifts) !== rank) return false;
+  return isMonthlyTargetReached(monthlyAmount, gift, category);
 }
 
 export function getUnlockedGiftForContractor(
   category: Category,
   rank: number | null,
-  achievementPercent: number
+  monthlyAmount: number
 ): CategoryGift | null {
   const gifts = getCategoryGifts(category);
   return (
-    gifts.find((g) => isGiftUnlockedForContractor(g, category, rank, achievementPercent)) ??
+    gifts.find((g) => isGiftUnlockedForContractor(g, category, rank, monthlyAmount)) ??
     null
   );
 }
@@ -168,6 +236,73 @@ export function getGiftForRank(category: Category, rank: number | null): Categor
   if (rank === null) return null;
   const gifts = getCategoryGifts(category);
   return gifts.find((g) => resolveGiftPosition(g, gifts) === rank) ?? null;
+}
+
+export function rankEmoji(rank: number): string {
+  if (rank === 1) return "👑";
+  if (rank === 2) return "🥈";
+  if (rank === 3) return "🥉";
+  return "🏅";
+}
+
+export function descriptionsForRank(rank: number): {
+  description_english: string;
+  description_telugu: string;
+} {
+  const n = Math.max(1, Math.round(rank));
+  return {
+    description_english: `${n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : `${n}th`} place — after monthly target`,
+    description_telugu:
+      n === 1
+        ? "① స్థానం — లక్ష్యం చేరిన తర్వాత"
+        : n === 2
+          ? "② స్థానం — లక్ష్యం చేరిన తర్వాత"
+          : n === 3
+            ? "③ స్థానం — లక్ష్యం చేరిన తర్వాత"
+            : `${n} స్థానం — లక్ష్యం చేరిన తర్వాత`,
+  };
+}
+
+/** Next leaderboard rank slot not used yet (1, 2, 3…). */
+export function nextUnusedRank(gifts: CategoryGift[]): number {
+  const used = new Set(
+    gifts.map((g) =>
+      usesLegacyBagThresholds(gifts)
+        ? resolveGiftPosition(g, gifts)
+        : Math.max(1, Math.round(g.min_value))
+    )
+  );
+  for (let i = 1; i <= MAX_GIFT_RANKS; i++) {
+    if (!used.has(i)) return i;
+  }
+  return MAX_GIFT_RANKS;
+}
+
+export function presetGiftNames(preset: (typeof GIFT_IMAGE_PRESETS)[number]): {
+  name_english: string;
+  name_telugu: string;
+} {
+  const map: Record<string, { name_english: string; name_telugu: string }> = {
+    "/gifts/mason-tv.svg": { name_english: "TV Gift", name_telugu: "టీవీ బహుమతి" },
+    "/gifts/mason-grinder.svg": {
+      name_english: "Mixer Grinder",
+      name_telugu: "మిక్సీ గ్రైండర్",
+    },
+    "/gifts/mason-iron-box.svg": {
+      name_english: "Iron Box",
+      name_telugu: "ఇనుము బాక్స్",
+    },
+    "/gifts/mason-design-kit.svg": {
+      name_english: "Design Kit",
+      name_telugu: "డిజైన్ కిట్",
+    },
+  };
+  return (
+    map[preset.value] ?? {
+      name_english: preset.labelEn,
+      name_telugu: preset.labelTe,
+    }
+  );
 }
 
 export function formatGiftPosition(lang: Lang, position: number): string {
@@ -185,16 +320,15 @@ export function formatGiftPosition(lang: Lang, position: number): string {
   return `${n}th place`;
 }
 
-export function formatGiftThreshold(lang: Lang, category: Category, minValue: number): string {
+export function formatGiftThreshold(lang: Lang, category: Category, gift: CategoryGift): string {
   const gifts = getCategoryGifts(category);
-  if (!usesLegacyBagThresholds(gifts)) {
-    return formatGiftPosition(lang, minValue);
+  const target = getGiftTargetAmount(gift, category);
+  const targetLabel = formatTargetValueBilingual(lang, category, target);
+  if (usesLegacyBagThresholds(gifts)) {
+    return lang === "te" ? `${targetLabel}+` : `${targetLabel}+`;
   }
-  const n = Math.round(minValue);
-  if (isBagsCategory(category)) {
-    return lang === "te" ? `${n}+ బ్యాగులు` : `${n}+ bags`;
-  }
-  return lang === "te" ? `${formatTargetValueBilingual(lang, category, n)}+` : `${n}+ (target)`;
+  const position = resolveGiftPosition(gift, gifts);
+  return `${formatGiftPosition(lang, position)} · ${targetLabel}`;
 }
 
 /** @deprecated Use getUnlockedGiftForContractor — rank + target, not cumulative tiers */
@@ -213,18 +347,30 @@ export function getNextCategoryGift(
   return null;
 }
 
-export function sanitizeRewardsForSave(rewards: CategoryGift[]): CategoryGift[] {
+export function sanitizeRewardsForSave(
+  rewards: CategoryGift[],
+  category?: Category
+): CategoryGift[] {
   const cleaned = rewards
     .map((g) => normalizeGift(g))
     .filter((g): g is CategoryGift => g !== null);
-  return sortGiftsByPosition(cleaned);
+  const sorted = sortGiftsByPosition(cleaned);
+  if (!category || usesLegacyBagThresholds(sorted)) return sorted;
+  const fallback = Math.max(1, Math.round(Number(category.monthly_target_amount) || 0) || 1);
+  return sorted.map((g) => {
+    const ta = Number(g.target_amount);
+    return {
+      ...g,
+      target_amount: ta > 0 ? Math.round(ta) : fallback,
+    };
+  });
 }
 
 export function validateRewardsDraft(
   rewards: CategoryGift[],
-  _targetAmount?: number
+  category?: Category
 ): { ok: true; cleaned: CategoryGift[] } | { ok: false; message: string } {
-  const cleaned = sanitizeRewardsForSave(rewards);
+  const cleaned = sanitizeRewardsForSave(rewards, category);
   if (rewards.length > 0 && cleaned.length === 0) {
     return {
       ok: false,
@@ -246,6 +392,17 @@ export function validateRewardsDraft(
       };
     }
   }
+  if (
+    category &&
+    cleaned.length > 0 &&
+    !usesLegacyBagThresholds(cleaned) &&
+    cleaned.some((g) => !g.target_amount || g.target_amount < 1)
+  ) {
+    return {
+      ok: false,
+      message: "Each card needs a target amount | ప్రతి కార్డ్ కి లక్ష్యం పెట్టండి",
+    };
+  }
   if (cleaned.length > 0 && !usesLegacyBagThresholds(cleaned)) {
     const positions = cleaned.map((g) => Math.round(g.min_value));
     if (positions.some((p) => p > 50)) {
@@ -265,14 +422,23 @@ export function validateRewardsDraft(
   return { ok: true, cleaned };
 }
 
-export function newEmptyGiftRow(nextPosition = 1): CategoryGift {
+export function newEmptyGiftRow(category: Category, nextPosition = 1): CategoryGift {
+  const rank = Math.max(1, Math.round(nextPosition));
+  const preset = GIFT_IMAGE_PRESETS[0];
+  const names = presetGiftNames(preset);
+  const desc = descriptionsForRank(rank);
+  const defaultTarget = Math.max(
+    1,
+    Math.round(Number(category.monthly_target_amount) || 0) || 100
+  );
   return {
     id: `gift-${Date.now()}`,
-    min_value: nextPosition,
-    name_english: "",
-    name_telugu: "",
-    description_english: "",
-    description_telugu: "",
-    image_src: GIFT_IMAGE_PRESETS[0].value,
+    min_value: rank,
+    target_amount: defaultTarget,
+    name_english: names.name_english,
+    name_telugu: names.name_telugu,
+    description_english: desc.description_english,
+    description_telugu: desc.description_telugu,
+    image_src: preset.value,
   };
 }

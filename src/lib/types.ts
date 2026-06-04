@@ -1,6 +1,9 @@
 export interface CategoryGift {
   id: string;
+  /** Leaderboard rank (1 = 1st). Legacy rows used bag/₹ threshold here instead. */
   min_value: number;
+  /** Bags or ₹ needed to unlock this rank's gift (can differ per card). */
+  target_amount?: number;
   name_english: string;
   name_telugu: string;
   description_english?: string;

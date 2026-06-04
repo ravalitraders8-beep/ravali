@@ -402,12 +402,65 @@ export async function POST(request: NextRequest) {
       return jsonNoStore({ ok: true });
     }
 
-    if (body.action === "deliver_reward") {
-      const { contractor_id, reward_level_id, notes } = body;
+    if (body.action === "deliver_reward" || body.action === "deliver_category_gift") {
+      const {
+        contractor_id,
+        reward_level_id,
+        notes: notesIn,
+        category_gift_id,
+        gift_name_english,
+        gift_name_telugu,
+      } = body;
       const monthYear = getCurrentMonthYear();
+
+      let levelId = reward_level_id as string | undefined;
+      if (body.action === "deliver_category_gift") {
+        if (!contractor_id || !category_gift_id) {
+          return NextResponse.json(
+            { message: "Member and gift required | సభ్యుడు, బహుమతి కావాలి" },
+            { status: 400 }
+          );
+        }
+        const { data: fallbackLevel } = await supabase
+          .from("reward_levels")
+          .select("id")
+          .order("min_amount", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        levelId = fallbackLevel?.id;
+        if (!levelId) {
+          return NextResponse.json(
+            { message: "No reward level configured in database" },
+            { status: 400 }
+          );
+        }
+      }
+
+      if (!contractor_id || !levelId) {
+        return NextResponse.json(
+          { message: "Member and gift required | సభ్యుడు, బహుమతి కావాలి" },
+          { status: 400 }
+        );
+      }
+
+      const notes =
+        body.action === "deliver_category_gift"
+          ? JSON.stringify({
+              type: "category_gift",
+              category_gift_id,
+              gift_name_english: String(gift_name_english ?? "").trim(),
+              gift_name_telugu: String(gift_name_telugu ?? "").trim(),
+            })
+          : notesIn;
+
       const { data, error } = await supabase
         .from("rewards_delivered")
-        .insert({ contractor_id, reward_level_id, notes, month_year: monthYear })
+        .insert({
+          contractor_id,
+          reward_level_id: levelId,
+          notes,
+          month_year: monthYear,
+        })
         .select()
         .single();
       if (error) return NextResponse.json({ message: error.message }, { status: 400 });
@@ -429,17 +482,26 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: "Category id required" }, { status: 400 });
       }
 
-      const { sanitizeRewardsForSave, validateRewardsDraft } = await import(
+      const { deriveCategoryMonthlyTarget, validateRewardsDraft } = await import(
         "@/lib/category-gifts"
       );
+
+      const { data: catRow } = await supabase
+        .from("categories")
+        .select("*")
+        .eq("id", category_id)
+        .maybeSingle();
+
+      const categoryForGifts = (catRow ?? {
+        id: category_id,
+        monthly_target_amount: Number(monthly_target_amount) || 0,
+        target_unit,
+      }) as import("@/lib/types").Category;
 
       const updates: Record<string, string | number | unknown> = {};
       const targetNum =
         monthly_target_amount != null ? Number(monthly_target_amount) : undefined;
 
-      if (monthly_target_amount != null && !Number.isNaN(targetNum)) {
-        updates.monthly_target_amount = targetNum;
-      }
       if (period_start_date) updates.period_start_date = period_start_date;
       if (period_end_date) updates.period_end_date = period_end_date;
       if (target_unit === "amount" || target_unit === "bags") updates.target_unit = target_unit;
@@ -447,11 +509,17 @@ export async function POST(request: NextRequest) {
       const savingPlan = body.action === "save_category_plan" || category_rewards != null;
       if (savingPlan) {
         const list = Array.isArray(category_rewards) ? category_rewards : [];
-        const validation = validateRewardsDraft(list, targetNum ?? 0);
+        const validation = validateRewardsDraft(list, categoryForGifts);
         if (!validation.ok) {
           return NextResponse.json({ message: validation.message }, { status: 400 });
         }
         updates.category_rewards = validation.cleaned;
+        updates.monthly_target_amount = deriveCategoryMonthlyTarget(
+          validation.cleaned,
+          categoryForGifts
+        );
+      } else if (monthly_target_amount != null && !Number.isNaN(targetNum)) {
+        updates.monthly_target_amount = targetNum;
       }
 
       if (Object.keys(updates).length === 0) {

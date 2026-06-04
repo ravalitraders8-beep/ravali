@@ -6,3 +6,10 @@ export function normalizePhoneInput(raw: string): string | null {
   if (digits.length === 11 && digits.startsWith("0")) return digits.slice(1);
   return null;
 }
+
+/** `tel:` link for one-tap call on mobile (India +91). */
+export function phoneTelHref(raw: string): string | null {
+  const n = normalizePhoneInput(raw);
+  if (!n) return null;
+  return `tel:+91${n}`;
+}

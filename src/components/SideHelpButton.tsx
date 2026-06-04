@@ -167,8 +167,8 @@ export function SideHelpButton({ bottomOffset = "bottom-24", category }: SideHel
                       <li key={g.id} className="flex items-center gap-2">
                         <span className="font-black text-[#e85d00]">
                           {legacy
-                            ? formatGiftThreshold(lang, category, g.min_value)
-                            : formatGiftPosition(lang, position)}
+                            ? formatGiftThreshold(lang, category, g)
+                            : formatGiftThreshold(lang, category, g)}
                         </span>
                         <span>
                           {pickBilingual(lang, g.name_english, g.name_telugu)}
