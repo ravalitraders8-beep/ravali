@@ -27,6 +27,17 @@ export async function GET(
       );
     }
 
+    if ("error" in result && result.error === "inactive") {
+      return NextResponse.json(
+        {
+          error: "inactive",
+          message:
+            "Your account is inactive. Contact the shop. | మీ ఖాతా నిలిపివేయబడింది. షాప్‌కు అడగండి.",
+        },
+        { status: 403 }
+      );
+    }
+
     if ("error" in result && result.error === "no_category") {
       return NextResponse.json(
         { error: "no_category", message: "Contractor has no category assigned" },

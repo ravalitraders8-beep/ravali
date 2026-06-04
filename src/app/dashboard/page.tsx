@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { getContractorSession } from "@/lib/session";
+import { fetchContractorDashboard } from "@/lib/api-client";
+import { clearContractorSession, getContractorSession } from "@/lib/session";
 import { isPwaInstalled } from "@/lib/pwa-install-store";
 
 /** /dashboard → session dashboard or home login */
@@ -15,11 +16,21 @@ export default function DashboardIndexPage() {
     const mobile =
       typeof navigator !== "undefined" &&
       /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if (session?.token && (!mobile || isPwaInstalled())) {
-      router.replace(`/dashboard/${encodeURIComponent(session.token)}`);
-    } else {
+
+    if (!session?.token || (mobile && !isPwaInstalled())) {
       router.replace("/");
+      return;
     }
+
+    const normalized = session.token.trim().toUpperCase();
+    fetchContractorDashboard(normalized, true)
+      .then(() => {
+        router.replace(`/dashboard/${encodeURIComponent(normalized)}`);
+      })
+      .catch(() => {
+        clearContractorSession();
+        router.replace("/");
+      });
   }, [router]);
 
   return (

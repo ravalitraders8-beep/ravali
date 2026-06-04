@@ -66,6 +66,18 @@ export const labels = {
     en: "You are not a member of this company. Contact the shop.",
     te: "మీరు ఈ షాప్ సభ్యులు కాదు. షాప్‌కు కాల్ చేయండి.",
   },
+  dashboardSignInHint: {
+    en: "Sign in with your registered mobile number. Old QR links may not work.",
+    te: "నమోదు ఫోన్ నంబర్ తో లాగిన్ అవ్వండి. పాత QR లింక్ పని చేయకపోవచ్చు.",
+  },
+  dashboardInactive: {
+    en: "Your account is inactive. Contact the shop.",
+    te: "మీ ఖాతా నిలిపివేయబడింది. షాప్‌కు కాల్ చేయండి.",
+  },
+  dashboardNoCategory: {
+    en: "Your profile is not set up yet. Contact the shop.",
+    te: "మీ వివరాలు ఇంకా సెట్ కాలేదు. షాప్‌కు కాల్ చేయండి.",
+  },
   loginFailed: {
     en: "Could not sign in. Try again.",
     te: "లాగిన్ కాలేదు. మళ్ళీ చూడండి.",

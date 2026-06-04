@@ -59,7 +59,7 @@ type Tab = "overview" | "contractors" | "registry" | "amounts" | "leaderboard" |
 const TABS: { key: Tab; icon: string; label: keyof typeof adminLabels }[] = [
   { key: "overview", icon: "📊", label: "overview" },
   { key: "contractors", icon: "👷", label: "contractors" },
-  { key: "registry", icon: "📋", label: "registry" },
+  { key: "registry", icon: "👥", label: "registry" },
   { key: "amounts", icon: "₹", label: "amounts" },
   { key: "leaderboard", icon: "🏆", label: "leaderboard" },
   { key: "targets", icon: "🎯", label: "targets" },
@@ -1125,7 +1125,7 @@ export function AdminDashboard() {
             >
               {registryList.length === 0 ? (
                 <p className="py-8 text-center text-gray-500">
-                  {registrySearch.trim() ? L("noSearchResults") : L("noContractors")}
+                  {registrySearch.trim() ? L("noSearchResults") : L("noMembers")}
                 </p>
               ) : (
                 registryList.map((c) => (

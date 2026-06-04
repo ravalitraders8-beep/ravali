@@ -9,8 +9,13 @@ import { UserPortalShell } from "@/components/UserPortalShell";
 import { useCachedApi } from "@/hooks/useCachedApi";
 import { fetchContractorDashboard } from "@/lib/api-client";
 import { CACHE_TAGS } from "@/lib/cache-tags";
+import { parseDashboardError } from "@/lib/dashboard-errors";
 import { labels, t } from "@/lib/i18n";
-import { getContractorSession, setContractorSession } from "@/lib/session";
+import {
+  clearContractorSession,
+  getContractorSession,
+  setContractorSession,
+} from "@/lib/session";
 import { useLang } from "@/context/LangContext";
 
 const INTRO_MIN_MS = 2200;
@@ -19,20 +24,13 @@ export default function DashboardPage() {
   const params = useParams();
   const router = useRouter();
   const { lang } = useLang();
-  const token = decodeURIComponent(params.token as string);
+  const token = decodeURIComponent(params.token as string).trim().toUpperCase();
   const [introDone, setIntroDone] = useState(false);
 
   useEffect(() => {
     const introTimer = window.setTimeout(() => setIntroDone(true), INTRO_MIN_MS);
     return () => window.clearTimeout(introTimer);
   }, []);
-
-  useEffect(() => {
-    const session = getContractorSession();
-    if (!session || session.token.toUpperCase() !== token.toUpperCase()) {
-      setContractorSession(token);
-    }
-  }, [token]);
 
   const fetcher = useCallback(
     (force?: boolean) => fetchContractorDashboard(token, force),
@@ -43,30 +41,53 @@ export default function DashboardPage() {
     watchTags: [CACHE_TAGS.CONTRACTOR, CACHE_TAGS.ADMIN],
   });
 
-  const errorType = useMemo(() => {
-    if (!error || typeof error !== "object") return "invalid";
-    const status = (error as { status?: number }).status;
-    if (status === 503) return "setup";
-    return "invalid";
-  }, [error]);
+  const errorKind = useMemo(() => parseDashboardError(error), [error]);
+
+  useEffect(() => {
+    if (loading || !data?.category) return;
+
+    const session = getContractorSession();
+    if (!session || session.token.toUpperCase() !== token) {
+      setContractorSession(token);
+    }
+  }, [loading, data, token]);
+
+  useEffect(() => {
+    if (loading || data?.category) return;
+    if (!error) return;
+    clearContractorSession();
+  }, [loading, data, error]);
+
+  const errorMessage = useMemo(() => {
+    switch (errorKind) {
+      case "inactive":
+        return t(lang, labels.dashboardInactive.en, labels.dashboardInactive.te);
+      case "no_category":
+        return t(lang, labels.dashboardNoCategory.en, labels.dashboardNoCategory.te);
+      case "invalid":
+      default:
+        return t(lang, labels.dashboardSignInHint.en, labels.dashboardSignInHint.te);
+    }
+  }, [errorKind, lang]);
 
   if (loading || !introDone) {
     return <IntroSplash />;
   }
 
-  if (errorType === "setup") return <SetupRequired />;
+  if (errorKind === "setup") return <SetupRequired />;
 
   if (error || !data || !data.category) {
     return (
       <UserPortalShell>
         <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#fff8f0] p-6 text-center">
           <span className="text-6xl">😔</span>
-          <p className="text-xl font-black text-red-700 sm:text-2xl">
-            {t(lang, labels.notMember.en, labels.notMember.te)}
-          </p>
+          <p className="text-xl font-black text-red-700 sm:text-2xl">{errorMessage}</p>
           <button
             type="button"
-            onClick={() => router.push("/")}
+            onClick={() => {
+              clearContractorSession();
+              router.push("/");
+            }}
             className="btn-big rounded-2xl bg-[#e85d00] px-10 text-white"
           >
             ← {t(lang, labels.backToLogin.en, labels.backToLogin.te)}

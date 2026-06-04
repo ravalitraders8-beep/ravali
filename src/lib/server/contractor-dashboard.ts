@@ -11,11 +11,14 @@ async function fetchContractorDashboardFromDb(qrToken: string, monthYear: string
     .from("contractors")
     .select("*, categories(*)")
     .eq("qr_token", qrToken)
-    .eq("is_active", true)
-    .single();
+    .maybeSingle();
 
   if (cErr || !contractor) {
     return { error: "invalid_token" as const };
+  }
+
+  if (!contractor.is_active) {
+    return { error: "inactive" as const };
   }
 
   const category = contractor.categories;
