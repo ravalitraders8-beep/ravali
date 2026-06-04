@@ -6,7 +6,8 @@ import { ShopLogo } from "./ShopLogo";
 import { UserPageExtras, MobileHeaderLangToggle } from "./UserPageExtras";
 import { LoadingSpinner } from "./LoadingSpinner";
 import { labels, t } from "@/lib/i18n";
-import { loginContractorByPhone } from "@/lib/api-client";
+import { invalidateByTags, loginContractorByPhone } from "@/lib/api-client";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { normalizePhoneInput } from "@/lib/phone-utils";
 import { setContractorSession } from "@/lib/session";
 import { useLang } from "@/context/LangContext";
@@ -35,8 +36,10 @@ export function PhoneLogin() {
         setError(result.message);
         return;
       }
-      setContractorSession(result.token);
-      router.replace(`/dashboard/${encodeURIComponent(result.token)}`);
+      const token = result.token.trim().toUpperCase();
+      invalidateByTags([CACHE_TAGS.CONTRACTOR]);
+      setContractorSession(token);
+      router.replace(`/dashboard/${encodeURIComponent(token)}`);
     } catch {
       setError(t(lang, labels.loginFailed.en, labels.loginFailed.te));
     } finally {
