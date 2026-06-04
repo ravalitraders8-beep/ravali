@@ -69,11 +69,14 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const { resolveBilingualField } = await import("@/lib/transliterate");
-      const name = resolveBilingualField(name_english, name_telugu);
+      const { resolveBilingualFieldAsync } = await import("@/lib/transliterate");
+      const name = await resolveBilingualFieldAsync(name_english, name_telugu);
       const villageEn = String(village_english ?? "").trim();
       const villageTe = String(village_telugu ?? "").trim();
-      const village = resolveBilingualField(villageEn || villageTe, villageTe || villageEn);
+      const village = await resolveBilingualFieldAsync(
+        villageEn || villageTe,
+        villageTe || villageEn
+      );
 
       if (!village.english) {
         return NextResponse.json(
@@ -82,24 +85,18 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const prefixMap: Record<string, string> = {
-        Painter: "PAINT",
-        Electrician: "ELEC",
-        Plumber: "PLMB",
-        Mason: "MASN",
-        Carpenter: "CARP",
-      };
       const { data: cat } = await supabase
         .from("categories")
         .select("name_english")
         .eq("id", category_id)
         .single();
-      const prefix = prefixMap[cat?.name_english ?? ""] ?? "CTR";
-      const { count } = await supabase
-        .from("contractors")
-        .select("*", { count: "exact", head: true })
-        .ilike("qr_token", `CTR-${prefix}-%`);
-      const qr_token = `CTR-${prefix}-${String((count ?? 0) + 1).padStart(3, "0")}`;
+      const {
+        categoryQrPrefix,
+        findContractorByPhone,
+        insertContractorWithUniqueQr,
+        isPhoneDuplicateError,
+      } = await import("@/lib/server/qr-token");
+      const prefix = categoryQrPrefix(cat?.name_english ?? "");
 
       const normalizedPhone = normalizePhoneInput(String(phone));
       if (!normalizedPhone) {
@@ -109,24 +106,52 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const { data, error } = await supabase
-        .from("contractors")
-        .insert({
-          name_english: name.english,
-          name_telugu: name.telugu,
-          phone: normalizedPhone,
-          village_english: village.english,
-          village_telugu: village.telugu,
-          category_id,
-          qr_token,
-        })
-        .select()
-        .single();
+      const existingPhone = await findContractorByPhone(supabase, normalizedPhone);
+      if (existingPhone) {
+        return NextResponse.json(
+          {
+            message: `This phone is already registered for ${existingPhone.name_english} (${existingPhone.qr_token}) | ఈ ఫోన్ నంబర్ ఇప్పటికే నమోదు అయింది`,
+            error: "phone_duplicate",
+          },
+          { status: 409 }
+        );
+      }
 
-      if (error) return NextResponse.json({ message: error.message }, { status: 400 });
+      const insertPayload = {
+        name_english: name.english,
+        name_telugu: name.telugu,
+        phone: normalizedPhone,
+        village_english: village.english,
+        village_telugu: village.telugu,
+        category_id,
+      };
+
+      let data: Record<string, unknown>;
+      try {
+        const inserted = await insertContractorWithUniqueQr(
+          supabase,
+          prefix,
+          insertPayload
+        );
+        data = inserted.data;
+      } catch (e) {
+        const err = e as { message?: string; code?: string; cause?: { message?: string } };
+        const msg = err.cause?.message ?? err.message ?? "Failed to add contractor";
+        if (err.message === "phone_duplicate" || isPhoneDuplicateError(msg)) {
+          return NextResponse.json(
+            {
+              message:
+                "This phone number is already registered | ఈ ఫోన్ నంబర్ ఇప్పటికే నమోదు అయింది",
+              error: "phone_duplicate",
+            },
+            { status: 409 }
+          );
+        }
+        return NextResponse.json({ message: msg }, { status: 400 });
+      }
       await supabase.from("admin_logs").insert({
         action: "add_contractor",
-        target_contractor_id: data.id,
+        target_contractor_id: String(data.id),
         details: `Added ${name.telugu}`,
       });
       bustServerCache();
@@ -141,11 +166,11 @@ export async function POST(request: NextRequest) {
 
       const updates: Record<string, string | boolean> = {};
 
-      const { resolveBilingualField } = await import("@/lib/transliterate");
+      const { resolveBilingualFieldAsync } = await import("@/lib/transliterate");
 
       if (typeof body.is_active === "boolean") updates.is_active = body.is_active;
       if (body.name_english != null || body.name_telugu != null) {
-        const name = resolveBilingualField(
+        const name = await resolveBilingualFieldAsync(
           String(body.name_english ?? ""),
           String(body.name_telugu ?? "")
         );
@@ -166,7 +191,7 @@ export async function POST(request: NextRequest) {
       }
       if (body.category_id) updates.category_id = body.category_id;
       if (body.village_english != null || body.village_telugu != null) {
-        const village = resolveBilingualField(
+        const village = await resolveBilingualFieldAsync(
           String(body.village_english ?? ""),
           String(body.village_telugu ?? "")
         );

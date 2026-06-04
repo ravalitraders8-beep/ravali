@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { englishToTelugu } from "@/lib/transliterate";
 import { transliterateToTelugu } from "@/lib/transliterate-client";
 
 interface BilingualFieldProps {
@@ -31,6 +30,7 @@ export function BilingualField({
 }: BilingualFieldProps) {
   const [manualTelugu, setManualTelugu] = useState(false);
   const [transliterating, setTransliterating] = useState(false);
+  const [teluguSource, setTeluguSource] = useState<"google" | "local" | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestIdRef = useRef(0);
 
@@ -39,14 +39,16 @@ export function BilingualField({
       const trimmed = english.trim();
       if (!trimmed) {
         onTeluguChange("");
+        setTeluguSource(null);
         return;
       }
       const id = ++requestIdRef.current;
       setTransliterating(true);
       try {
-        const te = await transliterateToTelugu(trimmed);
+        const { telugu, source } = await transliterateToTelugu(trimmed);
         if (requestIdRef.current === id) {
-          onTeluguChange(te);
+          onTeluguChange(telugu);
+          setTeluguSource(source);
         }
       } finally {
         if (requestIdRef.current === id) setTransliterating(false);
@@ -64,12 +66,14 @@ export function BilingualField({
 
     if (!value.trim()) {
       onTeluguChange("");
+      setTeluguSource(null);
       setTransliterating(false);
       return;
     }
 
-    onTeluguChange(englishToTelugu(value));
-
+    onTeluguChange("");
+    setTeluguSource(null);
+    setTransliterating(true);
     debounceRef.current = setTimeout(() => {
       void applyAutoTelugu(value);
     }, DEBOUNCE_MS);
@@ -78,6 +82,7 @@ export function BilingualField({
   const handleTelugu = (value: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     setManualTelugu(true);
+    setTeluguSource(null);
     onTeluguChange(value);
   };
 
@@ -87,6 +92,16 @@ export function BilingualField({
       void applyAutoTelugu(englishValue);
     }
   };
+
+  const autoBadge = manualTelugu
+    ? "✏️"
+    : transliterating
+      ? "…"
+      : teluguSource === "google"
+        ? "🌐 Google"
+        : teluguSource === "local"
+          ? "✨ auto"
+          : "✨ auto";
 
   const inputClass = compact
     ? "mt-0.5 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm"
@@ -121,16 +136,16 @@ export function BilingualField({
         <label className={`block font-semibold text-[#FF6B00] ${compact ? "text-xs" : "text-sm"}`}>
           {teluguLabel}
           {required && <span className="text-red-500"> *</span>}
-          <span className="ml-1 text-xs font-normal text-gray-500">
-            {manualTelugu ? "✏️" : transliterating ? "…" : "✨ auto"}
-          </span>
+          <span className="ml-1 text-xs font-normal text-gray-500">{autoBadge}</span>
         </label>
         <input
           type="text"
           value={teluguValue}
           onChange={(e) => handleTelugu(e.target.value)}
           className={teluguInputClass}
-          placeholder="తెలుగు ఇక్కడ కనిపిస్తుంది..."
+          placeholder={
+            transliterating ? "తెలుగు లోడ్ అవుతోంది..." : "తెలుగు ఇక్కడ కనిపిస్తుంది..."
+          }
           lang="te"
           autoComplete="off"
         />

@@ -26,7 +26,7 @@ import {
   periodStatus,
 } from "@/lib/category-period";
 import { useLang } from "@/context/LangContext";
-import { resolveBilingualField } from "@/lib/transliterate";
+import { transliterateToTelugu } from "@/lib/transliterate-client";
 import { clearAdminPinSession } from "@/lib/session";
 import {
   GIFT_IMAGE_PRESETS,
@@ -38,6 +38,15 @@ import {
 } from "@/lib/category-gifts";
 import { TRANSACTION_REASONS } from "@/lib/types";
 import type { Category, Contractor, RewardLevel, Transaction } from "@/lib/types";
+
+async function bilingualForSave(english: string, telugu: string) {
+  const en = english.trim();
+  if (!en) return { english: "", telugu: "" };
+  const te = telugu.trim();
+  if (te && te !== en) return { english: en, telugu: te };
+  const { telugu: auto } = await transliterateToTelugu(en);
+  return { english: en, telugu: auto };
+}
 
 type Tab = "overview" | "contractors" | "registry" | "amounts" | "leaderboard" | "targets";
 
@@ -279,11 +288,11 @@ export function AdminDashboard() {
 
   const saveEditContractor = async () => {
     if (!editingContractorId) return;
-    const name = resolveBilingualField(
+    const name = await bilingualForSave(
       editContractor.name_english,
       editContractor.name_telugu
     );
-    const village = resolveBilingualField(
+    const village = await bilingualForSave(
       editContractor.village_english || name.english,
       editContractor.village_telugu
     );
@@ -776,11 +785,11 @@ export function AdminDashboard() {
                 <button
                   type="button"
                   onClick={async () => {
-                    const name = resolveBilingualField(
+                    const name = await bilingualForSave(
                       newContractor.name_english,
                       newContractor.name_telugu
                     );
-                    const village = resolveBilingualField(
+                    const village = await bilingualForSave(
                       newContractor.village_english || name.english,
                       newContractor.village_telugu
                     );

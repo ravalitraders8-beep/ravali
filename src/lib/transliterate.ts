@@ -36,6 +36,8 @@ const KNOWN_TELUGU: Record<string, string> = {
   gopal: "గోపాల్",
   rajesh: "రాజేష్",
   raju: "రాజు",
+  nagaraju: "నాగరాజు",
+  nagarjuna: "నాగార్జున",
   kumar: "కుమార్",
   kavya: "కావ్య",
   shekar: "శేకర్",
@@ -170,7 +172,36 @@ export function englishToTelugu(text: string): string {
   return sanitizeTeluguOutput(transliterateWord(words[0]));
 }
 
-/** Resolve English + optional Telugu for DB — server & client use same logic */
+export type TeluguSource = "google" | "local";
+
+/** Server: Google Translate first, then local fallback */
+function hasTeluguScript(text: string): boolean {
+  return /[\u0C00-\u0C7F]/.test(text);
+}
+
+export async function toTeluguAccurate(
+  text: string
+): Promise<{ telugu: string; source: TeluguSource }> {
+  const trimmed = text.trim();
+  if (!trimmed) return { telugu: "", source: "local" };
+
+  const { translateEnglishToTeluguGoogle } = await import("@/lib/google-translate");
+  const google = await translateEnglishToTeluguGoogle(trimmed);
+  if (google) {
+    const cleaned = sanitizeTeluguOutput(google);
+    if (cleaned && hasTeluguScript(cleaned)) {
+      return { telugu: cleaned, source: "google" };
+    }
+  }
+  const local = englishToTelugu(trimmed);
+  const cleanedLocal = sanitizeTeluguOutput(local);
+  return {
+    telugu: hasTeluguScript(cleanedLocal) ? cleanedLocal : "",
+    source: "local",
+  };
+}
+
+/** Resolve English + optional Telugu for DB (sync — local only) */
 export function resolveBilingualField(
   english: string,
   telugu?: string
@@ -190,6 +221,30 @@ export function resolveBilingualField(
     te = sanitizeTeluguOutput(te);
   }
   return { english: en, telugu: te || englishToTelugu(en) };
+}
+
+/** Resolve with Google Translate on server (use in API routes) */
+export async function resolveBilingualFieldAsync(
+  english: string,
+  telugu?: string
+): Promise<{ english: string; telugu: string }> {
+  const en = english.trim();
+  let te = telugu?.trim() ?? "";
+
+  if (!en && te) {
+    return { english: te, telugu: sanitizeTeluguOutput(te) };
+  }
+  if (!en) {
+    return { english: "", telugu: "" };
+  }
+
+  if (!te || te === en) {
+    const result = await toTeluguAccurate(en);
+    te = result.telugu;
+  } else {
+    te = sanitizeTeluguOutput(te);
+  }
+  return { english: en, telugu: te || (await toTeluguAccurate(en)).telugu };
 }
 
 /** Format bilingual display: "English | Telugu" */

@@ -4,6 +4,7 @@ import {
   getSupabaseAnonKey,
   getSupabaseProjectRef,
   getSupabaseUrl,
+  isGoogleTranslateConfigured,
   isSupabaseConfigured,
 } from "@/lib/env";
 import { pingSupabaseRest } from "@/lib/server/supabase-connect";
@@ -21,6 +22,7 @@ export async function GET() {
     connectionMessage = ping.message;
   }
 
+  const hasGoogleTranslate = isGoogleTranslateConfigured();
   const ready = hasPin && hasSupabase && connected;
 
   return jsonWithCache(
@@ -28,6 +30,7 @@ export async function GET() {
       ready,
       hasPin,
       hasSupabase,
+      hasGoogleTranslate,
       connected,
       projectRef,
       hasUrl: Boolean(getSupabaseUrl()),
@@ -38,7 +41,9 @@ export async function GET() {
           ? "Supabase keys missing — add to Vercel env"
           : !connected
             ? connectionMessage
-            : "Ready",
+            : !hasGoogleTranslate
+              ? "Add GOOGLE_TRANSLATE_API_KEY for accurate Telugu names"
+              : "Ready",
     },
     "public"
   );

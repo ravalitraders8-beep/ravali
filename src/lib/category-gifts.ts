@@ -1,5 +1,5 @@
 import { isBagsCategory, formatTargetValueBilingual } from "@/lib/category-period";
-import { resolveBilingualField } from "@/lib/transliterate";
+import { sanitizeTeluguOutput } from "@/lib/transliterate";
 import type { Category, CategoryGift, Lang } from "./types";
 
 export type { CategoryGift };
@@ -54,12 +54,11 @@ function normalizeGift(raw: unknown): CategoryGift | null {
   if (!raw || typeof raw !== "object") return null;
   const g = raw as Record<string, unknown>;
   const min_value = Number(g.min_value);
-  const names = resolveBilingualField(
-    String(g.name_english ?? ""),
-    String(g.name_telugu ?? "")
-  );
-  const name_english = names.english;
-  const name_telugu = names.telugu;
+  let name_english = String(g.name_english ?? "").trim();
+  let name_telugu = String(g.name_telugu ?? "").trim();
+  if (!name_english && name_telugu) name_english = name_telugu;
+  if (!name_telugu && name_english) name_telugu = name_english;
+  name_telugu = sanitizeTeluguOutput(name_telugu);
   const image_src = String(g.image_src ?? "/gifts/mason-design-kit.svg").trim();
   if (!min_value || min_value < 1 || !name_english) return null;
   return {

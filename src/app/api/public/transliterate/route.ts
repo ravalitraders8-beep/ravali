@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { englishToTelugu, sanitizeTeluguOutput } from "@/lib/transliterate";
+import { isGoogleTranslateConfigured } from "@/lib/google-translate";
+import { sanitizeTeluguOutput, toTeluguAccurate } from "@/lib/transliterate";
 
 export async function POST(request: Request) {
   let body: { text?: string };
@@ -11,12 +12,20 @@ export async function POST(request: Request) {
 
   const text = String(body.text ?? "").trim();
   if (!text) {
-    return NextResponse.json({ telugu: "", english: "" });
+    return NextResponse.json({
+      telugu: "",
+      english: "",
+      source: "local",
+      googleConfigured: isGoogleTranslateConfigured(),
+    });
   }
 
-  const telugu = englishToTelugu(text);
+  const { telugu, source } = await toTeluguAccurate(text);
+
   return NextResponse.json({
     english: text,
     telugu: sanitizeTeluguOutput(telugu),
+    source,
+    googleConfigured: isGoogleTranslateConfigured(),
   });
 }

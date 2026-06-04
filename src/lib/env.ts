@@ -62,6 +62,17 @@ export function getAppUrl(): string {
   return "";
 }
 
+export function getGoogleTranslateApiKey(): string {
+  return (
+    readEnv("GOOGLE_TRANSLATE_API_KEY", "GOOGLE_CLOUD_TRANSLATION_API_KEY") ?? ""
+  );
+}
+
+export function isGoogleTranslateConfigured(): boolean {
+  const key = getGoogleTranslateApiKey();
+  return key.length > 20 && !isPlaceholder(key);
+}
+
 export function isSupabaseConfigured(): boolean {
   const url = getSupabaseUrl().trim();
   const serviceKey = getSupabaseServiceRoleKey().trim();
