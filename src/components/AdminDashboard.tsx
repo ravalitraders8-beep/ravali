@@ -13,6 +13,7 @@ import {
 import { AdminLangToggle } from "./AdminLangToggle";
 import { BilingualField } from "./BilingualField";
 import { LoadingSpinner } from "./LoadingSpinner";
+import { MemberSearchPicker } from "./MemberSearchPicker";
 import { adminLabels, ta } from "@/lib/admin-i18n";
 import { subscribeCache } from "@/lib/api-cache";
 import { adminPostAction, fetchAdminBundle } from "@/lib/api-client";
@@ -1183,25 +1184,20 @@ export function AdminDashboard() {
                     ))}
                   </select>
                 </label>
-                <label className="block text-sm font-bold sm:col-span-2">
-                  {L("contractors")}
-                  <select
+                <div className="sm:col-span-2">
+                  <span className="block text-sm font-bold">{L("contractors")}</span>
+                  <MemberSearchPicker
+                    members={txContractors}
+                    categories={categories}
                     value={txForm.contractor_id}
-                    onChange={(e) => setTxForm((p) => ({ ...p, contractor_id: e.target.value }))}
+                    onChange={(contractor_id) =>
+                      setTxForm((p) => ({ ...p, contractor_id }))
+                    }
                     disabled={txContractors.length === 0}
-                    className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4 disabled:bg-gray-100"
-                  >
-                    {txContractors.length === 0 ? (
-                      <option value="">{L("noContractorsInCategory")}</option>
-                    ) : (
-                      txContractors.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {contractorName(c)}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </label>
+                    lockedCategoryId={txCategoryId || undefined}
+                    emptyMessage={L("noContractorsInCategory")}
+                  />
+                </div>
                 <label className="block text-sm font-bold">
                   {txCategory && isBagsCategory(txCategory) ? L("bags") : L("amount")}
                   <input
