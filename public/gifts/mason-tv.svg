@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="TV">
+  <rect x="8" y="18" width="104" height="68" rx="8" fill="#1a2744"/>
+  <rect x="14" y="24" width="92" height="56" rx="4" fill="#3b82f6"/>
+  <rect x="22" y="32" width="76" height="40" rx="2" fill="#93c5fd"/>
+  <rect x="48" y="86" width="24" height="8" rx="2" fill="#64748b"/>
+  <rect x="36" y="94" width="48" height="6" rx="3" fill="#475569"/>
+</svg>

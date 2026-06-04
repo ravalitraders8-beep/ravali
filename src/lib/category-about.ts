@@ -90,8 +90,8 @@ const categoryAboutMap: Record<CategoryKey, CategoryAboutContent> = {
       { icon: "⛰️", en: "Sand & Chips", te: "isuka & chips" },
     ],
     shopPromise: {
-      en: "Strong materials for strong buildings!",
-      te: "strong illu — strong samagri!",
+      en: "Buy cement bags — win TV, grinder, iron box & more!",
+      te: "సిమెంట్ బ్యాగులు — TV, గ్రైండర్, ఇనుము బాక్స్ & మరిన్ని!",
     },
   },
   carpenter: {

@@ -5,6 +5,8 @@ import Image from "next/image";
 import { HelpPanelBackground } from "./HelpPanelBackground";
 import { ShopLogo } from "./ShopLogo";
 import { getCategoryAbout } from "@/lib/category-about";
+import { isBagsCategory } from "@/lib/category-period";
+import { formatBagsThreshold, MASON_BAG_GIFTS } from "@/lib/mason-gifts";
 import { aboutUs } from "@/lib/about-us";
 import { SHOP_PHONE, LOGO_EN_PATH, LOGO_TE_PATH } from "@/lib/constants";
 import { userMotivation } from "@/lib/motivation";
@@ -149,9 +151,24 @@ export function SideHelpButton({ bottomOffset = "bottom-24", category }: SideHel
               <h3 className="mt-6 text-sm font-black uppercase tracking-wide text-[#1a2744]">
                 {t(lang, "Your Gifts", "మీ బహుమతులు")}
               </h3>
-              <p className="mt-2 text-base leading-relaxed text-gray-700">
-                {t(lang, aboutUs.rewards.en, aboutUs.rewards.te)}
-              </p>
+              {category && isBagsCategory(category) ? (
+                <ul className="mt-2 space-y-2 text-base font-semibold text-gray-700">
+                  {[...MASON_BAG_GIFTS]
+                    .sort((a, b) => a.minBags - b.minBags)
+                    .map((g) => (
+                      <li key={g.id} className="flex items-center gap-2">
+                        <span className="font-black text-[#e85d00]">
+                          {formatBagsThreshold(lang, g.minBags)}
+                        </span>
+                        <span>{lang === "te" ? g.nameTe : g.nameEn}</span>
+                      </li>
+                    ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-base leading-relaxed text-gray-700">
+                  {t(lang, aboutUs.rewards.en, aboutUs.rewards.te)}
+                </p>
+              )}
 
               <p className="mt-4 text-sm text-gray-600">
                 {t(lang, aboutUs.contact.en, aboutUs.contact.te)}

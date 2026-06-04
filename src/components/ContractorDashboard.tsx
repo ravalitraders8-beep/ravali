@@ -6,7 +6,6 @@ import { DashboardSummary } from "./DashboardSummary";
 import { labels, t } from "@/lib/i18n";
 import { useLang } from "@/context/LangContext";
 import { ContactShopButton } from "./ContactShopButton";
-import { InstallAppPrompt, PwaInstallBar } from "./InstallAppPrompt";
 import { UserLeaderboard } from "./UserLeaderboard";
 import { GiftsSection } from "./GiftsSection";
 import type { ContractorDashboardData } from "@/lib/types";
@@ -17,8 +16,7 @@ interface ContractorDashboardProps {
 
 export function ContractorDashboard({ data }: ContractorDashboardProps) {
   const { lang } = useLang();
-  const { contractor, category, monthlyAmount, rewardLevel, rewardLevels, leaderboard } =
-    data;
+  const { contractor, category, monthlyAmount, leaderboard } = data;
 
   const achievementPercent =
     category.monthly_target_amount > 0
@@ -37,7 +35,7 @@ export function ContractorDashboard({ data }: ContractorDashboardProps) {
             size="sm"
             priority
             onDark
-            href={`/dashboard/${encodeURIComponent(contractor.qr_token)}`}
+            href="/"
           />
           <div
             className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-2xl"
@@ -76,15 +74,9 @@ export function ContractorDashboard({ data }: ContractorDashboardProps) {
           currentContractorId={contractor.id}
         />
 
-        <GiftsSection
-          rewardLevels={rewardLevels}
-          monthlyAmount={monthlyAmount}
-          currentLevel={rewardLevel}
-        />
+        <GiftsSection category={category} monthlyAmount={monthlyAmount} />
       </main>
 
-      <InstallAppPrompt />
-      <PwaInstallBar />
       <ContactShopButton />
     </div>
   );

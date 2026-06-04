@@ -22,7 +22,7 @@ export async function GET(
 
     if ("error" in result && result.error === "invalid_token") {
       return NextResponse.json(
-        { error: "invalid_token", message: "Invalid QR code" },
+        { error: "invalid_token", message: "Member not found" },
         { status: 404 }
       );
     }

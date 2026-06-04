@@ -27,12 +27,12 @@ import {
 } from "@/lib/category-period";
 import { useLang } from "@/context/LangContext";
 import { englishToTelugu } from "@/lib/transliterate";
-import { downloadQR, generateQRCodeOnly } from "@/lib/qr-utils";
 import { clearAdminPinSession } from "@/lib/session";
+import { formatBagsThreshold, MASON_BAG_GIFTS } from "@/lib/mason-gifts";
 import { TRANSACTION_REASONS } from "@/lib/types";
 import type { Category, Contractor, RewardLevel, Transaction } from "@/lib/types";
 
-type Tab = "overview" | "contractors" | "registry" | "amounts" | "leaderboard" | "rewards" | "targets" | "qr";
+type Tab = "overview" | "contractors" | "registry" | "amounts" | "leaderboard" | "rewards" | "targets";
 
 const TABS: { key: Tab; icon: string; label: keyof typeof adminLabels }[] = [
   { key: "overview", icon: "📊", label: "overview" },
@@ -42,12 +42,11 @@ const TABS: { key: Tab; icon: string; label: keyof typeof adminLabels }[] = [
   { key: "leaderboard", icon: "🏆", label: "leaderboard" },
   { key: "rewards", icon: "🎁", label: "rewards" },
   { key: "targets", icon: "🎯", label: "targets" },
-  { key: "qr", icon: "📱", label: "qr" },
 ];
 
 /** Bottom bar on mobile — 4 main tabs + Menu for the rest */
-const MOBILE_MAIN_TAB_KEYS: Tab[] = ["overview", "amounts", "contractors", "qr"];
-const MOBILE_MENU_TAB_KEYS: Tab[] = ["registry", "leaderboard", "rewards", "targets"];
+const MOBILE_MAIN_TAB_KEYS: Tab[] = ["overview", "amounts", "contractors", "registry"];
+const MOBILE_MENU_TAB_KEYS: Tab[] = ["leaderboard", "rewards", "targets"];
 
 const MOBILE_MAIN_TABS = MOBILE_MAIN_TAB_KEYS.map((key) => TABS.find((t) => t.key === key)!);
 const MOBILE_MENU_TABS = MOBILE_MENU_TAB_KEYS.map((key) => TABS.find((t) => t.key === key)!);
@@ -56,7 +55,7 @@ const MOBILE_NAV_SHORT: Partial<Record<Tab, keyof typeof adminLabels>> = {
   overview: "mobileNavOverview",
   amounts: "mobileNavAmounts",
   contractors: "mobileNavContractors",
-  qr: "mobileNavQr",
+  registry: "mobileNavRegister",
 };
 
 export function AdminDashboard() {
@@ -90,6 +89,15 @@ export function AdminDashboard() {
     village_telugu: "",
     category_id: "",
   });
+  const [editingContractorId, setEditingContractorId] = useState<string | null>(null);
+  const [editContractor, setEditContractor] = useState({
+    name_english: "",
+    name_telugu: "",
+    phone: "",
+    village_english: "",
+    village_telugu: "",
+    category_id: "",
+  });
   const [txForm, setTxForm] = useState({
     contractor_id: "",
     amount: 5000,
@@ -99,17 +107,6 @@ export function AdminDashboard() {
   const [editingTxId, setEditingTxId] = useState<string | null>(null);
   const [txCategoryId, setTxCategoryId] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [qrCategoryFilter, setQrCategoryFilter] = useState<string>("all");
-  const [qrSearch, setQrSearch] = useState("");
-  const [selectedQrId, setSelectedQrId] = useState<string | null>(null);
-  const [qrLoading, setQrLoading] = useState(false);
-  const [qrPreview, setQrPreview] = useState<{
-    url: string;
-    token: string;
-    name: string;
-    subtitle: string;
-  } | null>(null);
-
   const contractorName = (c: Contractor) =>
     lang === "te" ? c.name_telugu : c.name_english;
 
@@ -121,6 +118,15 @@ export function AdminDashboard() {
     [contractors]
   );
 
+  const contractorsSorted = useMemo(
+    () =>
+      [...contractors].sort((a, b) => {
+        if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
+        return contractorName(a).localeCompare(contractorName(b));
+      }),
+    [contractors, lang]
+  );
+
   const registryList = useMemo(() => {
     let list = activeContractors;
     if (categoryFilter !== "all") {
@@ -130,26 +136,6 @@ export function AdminDashboard() {
       contractorName(a).localeCompare(contractorName(b))
     );
   }, [activeContractors, categoryFilter, lang]);
-
-  const qrContractorList = useMemo(() => {
-    let list = activeContractors;
-    if (qrCategoryFilter !== "all") {
-      list = list.filter((c) => c.category_id === qrCategoryFilter);
-    }
-    const q = qrSearch.trim().toLowerCase();
-    if (q) {
-      list = list.filter(
-        (c) =>
-          c.name_english.toLowerCase().includes(q) ||
-          c.name_telugu.includes(q) ||
-          c.phone.includes(q) ||
-          c.qr_token.toLowerCase().includes(q)
-      );
-    }
-    return [...list].sort((a, b) =>
-      contractorName(a).localeCompare(contractorName(b))
-    );
-  }, [activeContractors, qrCategoryFilter, qrSearch, lang]);
 
   const txContractors = useMemo(() => {
     if (!txCategoryId) return activeContractors;
@@ -250,19 +236,82 @@ export function AdminDashboard() {
     }
   };
 
-  const deactivateContractor = async (id: string) => {
-    if (!window.confirm(ta(lang, "Deactivate this contractor?", "ఈ కాంట్రాక్టర్ నిలిపివేయాలా?")))
+  const startEditContractor = (c: Contractor) => {
+    setEditingContractorId(c.id);
+    setEditContractor({
+      name_english: c.name_english,
+      name_telugu: c.name_telugu,
+      phone: c.phone,
+      village_english: c.village_english,
+      village_telugu: c.village_telugu,
+      category_id: c.category_id ?? categories[0]?.id ?? "",
+    });
+  };
+
+  const cancelEditContractor = () => {
+    setEditingContractorId(null);
+  };
+
+  const saveEditContractor = async () => {
+    if (!editingContractorId) return;
+    const nameEn = editContractor.name_english.trim();
+    let nameTe = editContractor.name_telugu.trim();
+    if (!nameTe && nameEn) nameTe = englishToTelugu(nameEn);
+    if (!nameEn || editContractor.phone.length < 10) {
+      showToast(L("failed"));
       return;
+    }
+    const villageEn = editContractor.village_english.trim() || nameEn;
+    let villageTe = editContractor.village_telugu.trim();
+    if (!villageTe && villageEn) villageTe = englishToTelugu(villageEn);
+
+    const ok = await postAction({
+      action: "update_contractor",
+      id: editingContractorId,
+      name_english: nameEn,
+      name_telugu: nameTe,
+      phone: editContractor.phone,
+      village_english: villageEn,
+      village_telugu: villageTe,
+      category_id: editContractor.category_id,
+    });
+    if (ok) {
+      setEditingContractorId(null);
+    }
+  };
+
+  const setContractorActive = async (id: string, is_active: boolean) => {
+    const confirmKey = is_active ? "confirmActivate" : "confirmDeactivate";
+    const msg = adminLabels[confirmKey];
+    if (!window.confirm(ta(lang, msg.en, msg.te))) return;
+
     const { ok, data } = await adminPostAction({
       action: "update_contractor",
       id,
-      is_active: false,
+      is_active,
     });
     if (!ok) {
       showToast(String(data.message ?? data.error ?? L("failed")));
       return;
     }
-    showToast(L("deactivated"));
+    showToast(is_active ? L("reactivated") : L("deactivated"));
+    await loadAll(true);
+  };
+
+  const deleteContractor = async (id: string) => {
+    const msg = adminLabels.confirmDeleteContractor;
+    if (!window.confirm(ta(lang, msg.en, msg.te))) return;
+
+    const { ok, data } = await adminPostAction({
+      action: "delete_contractor",
+      id,
+    });
+    if (!ok) {
+      showToast(String(data.message ?? data.error ?? L("failed")));
+      return;
+    }
+    if (editingContractorId === id) setEditingContractorId(null);
+    showToast(L("deleted"));
     await loadAll(true);
   };
 
@@ -362,34 +411,6 @@ export function AdminDashboard() {
     return true;
   };
 
-  const showContractorQr = async (c: Contractor) => {
-    setSelectedQrId(c.id);
-    setQrLoading(true);
-    setQrPreview(null);
-    try {
-      const url = await generateQRCodeOnly(c.qr_token, 420);
-      setQrPreview({
-        url,
-        token: c.qr_token,
-        name: c.name_english,
-        subtitle: c.name_telugu,
-      });
-    } finally {
-      setQrLoading(false);
-    }
-  };
-
-  const closeQrFullscreen = () => {
-    setQrPreview(null);
-    setSelectedQrId(null);
-    setQrLoading(false);
-  };
-
-  const previewQR = async (c: Contractor) => {
-    await showContractorQr(c);
-    setTab("qr");
-  };
-
   const logout = () => {
     clearAdminPinSession();
     window.location.href = "/";
@@ -440,62 +461,6 @@ export function AdminDashboard() {
       {toast && (
         <div className="fixed bottom-20 left-1/2 z-[60] -translate-x-1/2 rounded-2xl bg-gray-900 px-5 py-3 text-sm font-bold text-white shadow-xl md:bottom-6">
           {toast}
-        </div>
-      )}
-
-      {(qrLoading || qrPreview) && selectedQrId && (
-        <div className="fixed inset-0 z-[100] flex flex-col bg-white">
-          <header className="flex shrink-0 items-center gap-3 bg-[#1a2744] px-4 py-3 text-white shadow-lg">
-            <button
-              type="button"
-              onClick={closeQrFullscreen}
-              className="flex min-h-[44px] items-center gap-2 rounded-xl bg-white/15 px-4 text-sm font-bold"
-            >
-              ← {L("back")}
-            </button>
-            <p className="min-w-0 flex-1 truncate text-base font-black">
-              {qrPreview?.name ?? contractors.find((c) => c.id === selectedQrId)?.name_english}
-            </p>
-          </header>
-
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="flex flex-col items-center gap-5 px-4 py-6 pb-8">
-              {qrLoading ? (
-                <LoadingSpinner message={L("loading")} />
-              ) : qrPreview ? (
-                <>
-                  <div className="w-full max-w-md text-center">
-                    <p className="text-3xl font-black text-[#1a2744]">{qrPreview.name}</p>
-                    <p className="mt-1 text-2xl font-bold text-gray-600">{qrPreview.subtitle}</p>
-                    <p className="mt-2 font-mono text-sm text-gray-400">{qrPreview.token}</p>
-                  </div>
-
-                  <div className="w-full max-w-md rounded-2xl border-4 border-[#1a2744] bg-white p-4 shadow-lg">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={qrPreview.url}
-                      alt={`QR ${qrPreview.name}`}
-                      className="mx-auto w-full max-w-[min(85vw,360px)]"
-                    />
-                  </div>
-
-                  <p className="max-w-md rounded-2xl bg-orange-100 px-6 py-4 text-center text-base font-bold text-[#e85d00]">
-                    {L("scanToOpen")}
-                  </p>
-                </>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="shrink-0 border-t border-orange-200 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-            <button
-              type="button"
-              onClick={closeQrFullscreen}
-              className="btn-big w-full rounded-2xl bg-[#1a2744] text-white"
-            >
-              ← {L("back")}
-            </button>
-          </div>
         </div>
       )}
 
@@ -615,6 +580,9 @@ export function AdminDashboard() {
         {tab === "contractors" && (
           <>
             <Panel title={L("addContractor")}>
+              <p className="mb-3 rounded-xl bg-blue-50 p-3 text-sm font-medium text-blue-900">
+                {L("loginHint")}
+              </p>
               <p className="mb-4 rounded-xl bg-orange-50 p-3 text-sm font-medium text-orange-900">
                 {L("typeEnglishHint")}
               </p>
@@ -711,57 +679,151 @@ export function AdminDashboard() {
                   }}
                   className="btn-big sm:col-span-2 rounded-2xl bg-[#e85d00] text-white"
                 >
-                  ➕ {L("addAndQr")}
+                  ➕ {L("addContractorBtn")}
                 </button>
               </div>
             </Panel>
+
+            {editingContractorId && (
+              <Panel title={L("editContractor")}>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <BilingualField
+                      englishLabel={L("name")}
+                      teluguLabel={`${L("name")} (Auto)`}
+                      englishValue={editContractor.name_english}
+                      teluguValue={editContractor.name_telugu}
+                      onEnglishChange={(v) =>
+                        setEditContractor((p) => ({ ...p, name_english: v }))
+                      }
+                      onTeluguChange={(v) => setEditContractor((p) => ({ ...p, name_telugu: v }))}
+                      englishPlaceholder="Rohith Kumar"
+                      required
+                    />
+                  </div>
+                  <label className="block text-sm font-bold">
+                    {L("phone")} *
+                    <input
+                      value={editContractor.phone}
+                      onChange={(e) =>
+                        setEditContractor((p) => ({
+                          ...p,
+                          phone: e.target.value.replace(/\D/g, "").slice(0, 10),
+                        }))
+                      }
+                      inputMode="numeric"
+                      className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
+                    />
+                  </label>
+                  <label className="block text-sm font-bold">
+                    {L("category")}
+                    <select
+                      value={editContractor.category_id}
+                      onChange={(e) =>
+                        setEditContractor((p) => ({ ...p, category_id: e.target.value }))
+                      }
+                      className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
+                    >
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {categoryName(cat)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="sm:col-span-2">
+                    <BilingualField
+                      englishLabel={L("village")}
+                      teluguLabel={`${L("village")} (Auto)`}
+                      englishValue={editContractor.village_english}
+                      teluguValue={editContractor.village_telugu}
+                      onEnglishChange={(v) =>
+                        setEditContractor((p) => ({ ...p, village_english: v }))
+                      }
+                      onTeluguChange={(v) =>
+                        setEditContractor((p) => ({ ...p, village_telugu: v }))
+                      }
+                      englishPlaceholder="Palakurthy"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void saveEditContractor()}
+                    className="btn-big rounded-2xl bg-[#e85d00] text-white"
+                  >
+                    {L("saveContractor")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelEditContractor}
+                    className="btn-big rounded-2xl border-2 border-gray-200 font-bold text-gray-600"
+                  >
+                    {L("cancelEdit")}
+                  </button>
+                </div>
+              </Panel>
+            )}
 
             <Panel title={L("contractorsList")}>
               {contractors.length === 0 ? (
                 <p className="py-8 text-center text-gray-500">{L("noContractors")}</p>
               ) : (
-                contractors.map((c) => (
+                contractorsSorted.map((c) => (
                   <div
                     key={c.id}
-                    className="mb-3 flex flex-col gap-2 rounded-xl border border-gray-100 bg-gray-50 p-3 sm:flex-row sm:items-center"
+                    className={`mb-3 flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-center ${
+                      c.is_active
+                        ? "border-gray-100 bg-gray-50"
+                        : "border-gray-200 bg-gray-100 opacity-90"
+                    } ${editingContractorId === c.id ? "ring-2 ring-[#e85d00]" : ""}`}
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-base font-black">{contractorName(c)}</p>
-                      <p className="truncate text-xs text-gray-500">
-                        {c.qr_token} • {c.phone}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate text-base font-black">{contractorName(c)}</p>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                            c.is_active
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-200 text-gray-600"
+                          }`}
+                        >
+                          {c.is_active ? L("active") : L("inactive")}
+                        </span>
+                      </div>
+                      <p className="truncate text-xs text-gray-500">📞 {c.phone}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() => void previewQR(c)}
+                        onClick={() => startEditContractor(c)}
                         className="min-h-[44px] rounded-xl bg-white px-4 text-sm font-bold shadow-sm"
                       >
-                        📱 QR
+                        ✏️ {L("edit")}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void downloadQR(c.qr_token, c.name_english, c.name_telugu)
-                        }
-                        className="min-h-[44px] rounded-xl bg-[#e85d00] px-4 text-sm font-bold text-white"
-                      >
-                        ⬇️ {L("download")}
-                      </button>
-                      {c.is_active && (
+                      {c.is_active ? (
                         <button
                           type="button"
-                          onClick={() => void deactivateContractor(c.id)}
-                          className="min-h-[44px] rounded-xl bg-red-100 px-4 text-sm font-bold text-red-700"
+                          onClick={() => void setContractorActive(c.id, false)}
+                          className="min-h-[44px] rounded-xl bg-amber-100 px-4 text-sm font-bold text-amber-900"
                         >
                           {L("deactivate")}
                         </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => void setContractorActive(c.id, true)}
+                          className="min-h-[44px] rounded-xl bg-green-100 px-4 text-sm font-bold text-green-800"
+                        >
+                          {L("activate")}
+                        </button>
                       )}
-                      {!c.is_active && (
-                        <span className="min-h-[44px] rounded-xl bg-gray-200 px-4 py-2 text-sm font-bold text-gray-600">
-                          {L("inactive")}
-                        </span>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => void deleteContractor(c.id)}
+                        className="min-h-[44px] rounded-xl bg-red-100 px-4 text-sm font-bold text-red-700"
+                      >
+                        🗑️ {L("delete")}
+                      </button>
                     </div>
                   </div>
                 ))
@@ -846,13 +908,6 @@ export function AdminDashboard() {
                         {L("date")}: {c.joined_date?.slice(0, 10) ?? "—"}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => void previewQR(c)}
-                      className="min-h-[44px] shrink-0 rounded-xl bg-white px-4 text-sm font-bold shadow-sm"
-                    >
-                      📱 QR
-                    </button>
                   </div>
                 ))
               )}
@@ -1095,6 +1150,35 @@ export function AdminDashboard() {
 
         {tab === "rewards" && (
           <>
+            <Panel title={L("masonGiftsPlan")}>
+              <p className="mb-4 rounded-xl bg-orange-50 p-3 text-sm font-medium text-orange-900">
+                {L("masonGiftsPlanHint")}
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {MASON_BAG_GIFTS.map((g) => (
+                  <div
+                    key={g.id}
+                    className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={g.imageSrc}
+                      alt={g.nameEn}
+                      className="h-14 w-14 shrink-0 object-contain"
+                    />
+                    <div>
+                      <p className="font-black text-[#1a2744]">
+                        {lang === "te" ? g.nameTe : g.nameEn}
+                      </p>
+                      <p className="text-sm font-bold text-[#e85d00]">
+                        {formatBagsThreshold(lang, g.minBags)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+
             <Panel title={L("markReward")}>
               <div className="grid gap-3 sm:grid-cols-2">
                 <select id="rw-contractor" className="min-h-[48px] rounded-xl border-2 px-4">
@@ -1200,86 +1284,6 @@ export function AdminDashboard() {
           </Panel>
         )}
 
-        {tab === "qr" && (
-          <>
-            <Panel title={L("qrGenerator")}>
-              <p className="mb-4 rounded-xl bg-orange-50 p-3 text-sm font-medium text-orange-900">
-                {L("qrWalkInHint")}
-              </p>
-
-              <label className="block text-sm font-bold">
-                {L("searchContractor")}
-                <input
-                  type="search"
-                  value={qrSearch}
-                  onChange={(e) => setQrSearch(e.target.value)}
-                  placeholder={L("searchContractor")}
-                  className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
-                />
-              </label>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setQrCategoryFilter("all")}
-                  className={`min-h-[40px] rounded-full px-4 text-sm font-bold transition-colors ${
-                    qrCategoryFilter === "all"
-                      ? "bg-[#e85d00] text-white"
-                      : "bg-gray-100 text-gray-700"
-                  }`}
-                >
-                  👥 {L("filterAll")} ({activeContractors.length})
-                </button>
-                {categories.map((cat) => {
-                  const count = activeContractors.filter((c) => c.category_id === cat.id).length;
-                  return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setQrCategoryFilter(cat.id)}
-                      className={`min-h-[40px] rounded-full px-4 text-sm font-bold transition-colors ${
-                        qrCategoryFilter === cat.id
-                          ? "bg-[#e85d00] text-white"
-                          : "bg-gray-100 text-gray-700"
-                      }`}
-                    >
-                      {cat.icon} {categoryName(cat)} ({count})
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="mt-4 max-h-64 space-y-2 overflow-y-auto">
-                {qrContractorList.length === 0 ? (
-                  <p className="py-8 text-center text-gray-500">{L("noContractors")}</p>
-                ) : (
-                  qrContractorList.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => void showContractorQr(c)}
-                      className={`flex w-full items-center justify-between gap-3 rounded-xl border-2 p-3 text-left transition-colors ${
-                        selectedQrId === c.id
-                          ? "border-[#e85d00] bg-orange-50"
-                          : "border-gray-100 bg-gray-50 hover:border-orange-200"
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-black">{contractorName(c)}</p>
-                        <p className="truncate text-xs text-gray-500">
-                          {c.phone} • {c.qr_token}
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-sm font-bold text-[#e85d00]">
-                        📱 {L("showQr")}
-                      </span>
-                    </button>
-                  ))
-                )}
-              </div>
-            </Panel>
-          </>
-        )}
       </main>
 
       {/* Mobile bottom nav — 4 main tabs only */}

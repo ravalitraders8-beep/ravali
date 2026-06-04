@@ -5,21 +5,20 @@ import { useParams, useRouter } from "next/navigation";
 import { ContractorDashboard } from "@/components/ContractorDashboard";
 import { IntroSplash } from "@/components/IntroSplash";
 import { SetupRequired } from "@/components/SetupRequired";
+import { UserPortalShell } from "@/components/UserPortalShell";
 import { useCachedApi } from "@/hooks/useCachedApi";
 import { fetchContractorDashboard } from "@/lib/api-client";
 import { CACHE_TAGS } from "@/lib/cache-tags";
-import { labels } from "@/lib/i18n";
-import {
-  getContractorSession,
-  setContractorSession,
-  markInstallPromptForSession,
-} from "@/lib/session";
+import { labels, t } from "@/lib/i18n";
+import { getContractorSession, setContractorSession } from "@/lib/session";
+import { useLang } from "@/context/LangContext";
 
 const INTRO_MIN_MS = 2200;
 
 export default function DashboardPage() {
   const params = useParams();
   const router = useRouter();
+  const { lang } = useLang();
   const token = decodeURIComponent(params.token as string);
   const [introDone, setIntroDone] = useState(false);
 
@@ -32,10 +31,6 @@ export default function DashboardPage() {
     const session = getContractorSession();
     if (!session || session.token.toUpperCase() !== token.toUpperCase()) {
       setContractorSession(token);
-    }
-    const search = new URLSearchParams(window.location.search);
-    if (search.get("from") === "qr") {
-      markInstallPromptForSession();
     }
   }, [token]);
 
@@ -63,19 +58,27 @@ export default function DashboardPage() {
 
   if (error || !data || !data.category) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#fff8f0] p-6 text-center">
-        <span className="text-6xl">😔</span>
-        <p className="text-2xl font-black">{labels.invalidQR.te}</p>
-        <button
-          type="button"
-          onClick={() => router.push("/")}
-          className="btn-big rounded-2xl bg-[#e85d00] px-10 text-white"
-        >
-          ← {labels.scanQR.te}
-        </button>
-      </div>
+      <UserPortalShell>
+        <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#fff8f0] p-6 text-center">
+          <span className="text-6xl">😔</span>
+          <p className="text-xl font-black text-red-700 sm:text-2xl">
+            {t(lang, labels.notMember.en, labels.notMember.te)}
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className="btn-big rounded-2xl bg-[#e85d00] px-10 text-white"
+          >
+            ← {t(lang, labels.backToLogin.en, labels.backToLogin.te)}
+          </button>
+        </div>
+      </UserPortalShell>
     );
   }
 
-  return <ContractorDashboard data={data} />;
+  return (
+    <UserPortalShell>
+      <ContractorDashboard data={data} />
+    </UserPortalShell>
+  );
 }

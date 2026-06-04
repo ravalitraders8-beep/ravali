@@ -64,6 +64,33 @@ export function fetchSupabaseTest(force = false) {
   );
 }
 
+export async function loginContractorByPhone(
+  phone: string
+): Promise<{ token: string; name: string } | { error: string; message: string }> {
+  const res = await fetch("/api/public/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone }),
+    cache: "no-store",
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    token?: string;
+    name?: string;
+    error?: string;
+    message?: string;
+  };
+  if (!res.ok) {
+    return {
+      error: data.error ?? "login_failed",
+      message: data.message ?? "Login failed",
+    };
+  }
+  if (!data.token) {
+    return { error: "login_failed", message: "Login failed" };
+  }
+  return { token: data.token, name: data.name ?? "" };
+}
+
 export function fetchContractorDashboard(token: string, force = false) {
   const normalized = token.trim().toUpperCase();
   const key = `api:contractor:${normalized}`;

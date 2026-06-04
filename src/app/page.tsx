@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { QRScanner } from "@/components/QRScanner";
+import { PhoneLogin } from "@/components/PhoneLogin";
 import { SetupRequired } from "@/components/SetupRequired";
 import { IntroSplash } from "@/components/IntroSplash";
+import { UserPortalShell } from "@/components/UserPortalShell";
 import { fetchSetupStatus } from "@/lib/api-client";
 import { getContractorSession } from "@/lib/session";
+import { isPwaInstalled } from "@/lib/pwa-install-store";
 
 const INTRO_MIN_MS = 2400;
 
@@ -23,7 +25,10 @@ export default function HomePage() {
 
   useEffect(() => {
     const session = getContractorSession();
-    if (session?.token) {
+    const mobile =
+      typeof navigator !== "undefined" &&
+      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (session?.token && (!mobile || isPwaInstalled())) {
       router.replace(`/dashboard/${encodeURIComponent(session.token)}`);
       return;
     }
@@ -40,5 +45,9 @@ export default function HomePage() {
 
   if (!ready) return <SetupRequired />;
 
-  return <QRScanner />;
+  return (
+    <UserPortalShell>
+      <PhoneLogin />
+    </UserPortalShell>
+  );
 }

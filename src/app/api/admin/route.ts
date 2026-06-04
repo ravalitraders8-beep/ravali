@@ -4,6 +4,7 @@ import { getAdminPin, isSupabaseConfigured } from "@/lib/env";
 import { getAdminData, getAdminStats } from "@/lib/server/admin-data";
 import { friendlySupabaseError, extractErrorCause } from "@/lib/server/supabase-connect";
 import { bustServerCache } from "@/lib/server/cache-sync";
+import { normalizePhoneInput } from "@/lib/phone-utils";
 
 function verifyPin(request: NextRequest): boolean {
   const pin = request.headers.get("x-admin-pin")?.trim();
@@ -96,12 +97,20 @@ export async function POST(request: NextRequest) {
         .ilike("qr_token", `CTR-${prefix}-%`);
       const qr_token = `CTR-${prefix}-${String((count ?? 0) + 1).padStart(3, "0")}`;
 
+      const normalizedPhone = normalizePhoneInput(String(phone));
+      if (!normalizedPhone) {
+        return NextResponse.json(
+          { message: "Enter a valid 10-digit phone | సరైన 10 అంకెల ఫోన్" },
+          { status: 400 }
+        );
+      }
+
       const { data, error } = await supabase
         .from("contractors")
         .insert({
           name_english: name_english.trim(),
           name_telugu: name_telugu.trim(),
-          phone: phone.trim(),
+          phone: normalizedPhone,
           village_english: villageEn || villageTe,
           village_telugu: villageTe || villageEn,
           category_id,
@@ -126,20 +135,93 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: "Contractor id required" }, { status: 400 });
       }
 
-      const updates: Record<string, boolean> = {};
+      const updates: Record<string, string | boolean> = {};
+
       if (typeof body.is_active === "boolean") updates.is_active = body.is_active;
+      if (body.name_english?.trim()) updates.name_english = String(body.name_english).trim();
+      if (body.name_telugu?.trim()) updates.name_telugu = String(body.name_telugu).trim();
+      if (body.phone != null) {
+        const normalizedPhone = normalizePhoneInput(String(body.phone));
+        if (!normalizedPhone) {
+          return NextResponse.json(
+            { message: "Enter a valid 10-digit phone | సరైన 10 అంకెల ఫోన్" },
+            { status: 400 }
+          );
+        }
+        updates.phone = normalizedPhone;
+      }
+      if (body.category_id) updates.category_id = body.category_id;
+      if (body.village_english != null || body.village_telugu != null) {
+        const villageEn = String(body.village_english ?? "").trim();
+        const villageTe = String(body.village_telugu ?? "").trim();
+        if (villageEn || villageTe) {
+          updates.village_english = villageEn || villageTe;
+          updates.village_telugu = villageTe || villageEn;
+        }
+      }
 
       if (Object.keys(updates).length === 0) {
         return NextResponse.json({ message: "Nothing to update" }, { status: 400 });
       }
 
-      const { error } = await supabase.from("contractors").update(updates).eq("id", id);
+      const { data: updated, error } = await supabase
+        .from("contractors")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) {
+        const msg =
+          error.code === "23505"
+            ? "Phone number already used by another contractor | ఈ ఫోన్ ఇప్పటికే ఉంది"
+            : error.message;
+        return NextResponse.json({ message: msg }, { status: 400 });
+      }
+
+      const logAction =
+        updates.is_active === false
+          ? "deactivate_contractor"
+          : updates.is_active === true
+            ? "reactivate_contractor"
+            : "update_contractor";
+
+      await supabase.from("admin_logs").insert({
+        action: logAction,
+        target_contractor_id: id,
+        details:
+          updates.is_active === false
+            ? "Deactivated"
+            : updates.is_active === true
+              ? "Reactivated"
+              : `Updated ${updated?.name_telugu ?? id}`,
+      });
+      bustServerCache();
+      return jsonNoStore(updated ?? { ok: true });
+    }
+
+    if (body.action === "delete_contractor") {
+      const { id } = body;
+      if (!id) {
+        return NextResponse.json({ message: "Contractor id required" }, { status: 400 });
+      }
+
+      const { data: existing } = await supabase
+        .from("contractors")
+        .select("name_telugu")
+        .eq("id", id)
+        .single();
+
+      await supabase.from("transactions").delete().eq("contractor_id", id);
+      await supabase.from("rewards_delivered").delete().eq("contractor_id", id);
+      await supabase.from("admin_logs").delete().eq("target_contractor_id", id);
+
+      const { error } = await supabase.from("contractors").delete().eq("id", id);
       if (error) return NextResponse.json({ message: error.message }, { status: 400 });
 
       await supabase.from("admin_logs").insert({
-        action: updates.is_active === false ? "deactivate_contractor" : "update_contractor",
-        target_contractor_id: id,
-        details: updates.is_active === false ? "Deactivated" : "Updated contractor",
+        action: "delete_contractor",
+        details: `Deleted ${existing?.name_telugu ?? id}`,
       });
       bustServerCache();
       return jsonNoStore({ ok: true });
