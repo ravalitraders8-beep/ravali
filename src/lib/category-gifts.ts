@@ -12,41 +12,44 @@ export const GIFT_IMAGE_PRESETS: { value: string; labelEn: string; labelTe: stri
   { value: "/gifts/mason-design-kit.svg", labelEn: "Design kit", labelTe: "డిజైన్ కిట్" },
 ];
 
+/** Legacy DB rows used bag counts (100, 200, …) in min_value; new rows use rank 1, 2, 3… */
+const LEGACY_BAG_THRESHOLD_MIN = 21;
+
 const FALLBACK_MASON: CategoryGift[] = [
   {
     id: "tv",
-    min_value: 600,
+    min_value: 1,
     name_english: "TV Gift",
     name_telugu: "టీవీ బహుమతి",
-    description_english: "LED TV for top mason partners",
-    description_telugu: "మంచి మేస్త్రీలకు టీవీ",
+    description_english: "1st place — after you reach target",
+    description_telugu: "① స్థానం — లక్ష్యం చేరిన తర్వాత",
     image_src: "/gifts/mason-tv.svg",
   },
   {
     id: "grinder",
-    min_value: 300,
+    min_value: 2,
     name_english: "Mixer Grinder",
     name_telugu: "మిక్సీ గ్రైండర్",
-    description_english: "Mixer grinder for your home",
-    description_telugu: "మీ ఇంటికి మిక్సీ గ్రైండర్",
+    description_english: "2nd place — after you reach target",
+    description_telugu: "② స్థానం — లక్ష్యం చేరిన తర్వాత",
     image_src: "/gifts/mason-grinder.svg",
   },
   {
     id: "iron-box",
-    min_value: 200,
+    min_value: 3,
     name_english: "Iron Box",
     name_telugu: "ఇనుము బాక్స్",
-    description_english: "Electric iron box",
-    description_telugu: "ఎలక్ట్రిక్ ఇనుము బాక్స్",
+    description_english: "3rd place — after you reach target",
+    description_telugu: "③ స్థానం — లక్ష్యం చేరిన తర్వాత",
     image_src: "/gifts/mason-iron-box.svg",
   },
   {
     id: "design-kit",
-    min_value: 100,
+    min_value: 4,
     name_english: "Design Kit",
     name_telugu: "డిజైన్ కిట్",
-    description_english: "Mason tool & design kit",
-    description_telugu: "మేస్త్రీ టూల్ & డిజైన్ కిట్",
+    description_english: "4th place — after you reach target",
+    description_telugu: "④ స్థానం — లక్ష్యం చేరిన తర్వాత",
     image_src: "/gifts/mason-design-kit.svg",
   },
 ];
@@ -85,10 +88,10 @@ export function parseCategoryRewards(raw: unknown): CategoryGift[] {
       return [];
     }
   }
-  return list
+  const parsed = list
     .map(normalizeGift)
-    .filter((g): g is CategoryGift => g !== null)
-    .sort((a, b) => b.min_value - a.min_value);
+    .filter((g): g is CategoryGift => g !== null);
+  return sortGiftsByPosition(parsed);
 }
 
 /** True when DB has an explicit rewards list (including empty = user cleared all gifts) */
@@ -105,12 +108,88 @@ export function getCategoryGifts(category: Category): CategoryGift[] {
     return parseCategoryRewards(category.category_rewards);
   }
   if (category.name_english.toLowerCase().includes("mason")) {
-    return [...FALLBACK_MASON].sort((a, b) => b.min_value - a.min_value);
+    return [...FALLBACK_MASON].sort((a, b) => a.min_value - b.min_value);
   }
   return [];
 }
 
+/** Old saves used bag/amount thresholds in min_value; new saves use rank 1, 2, 3… */
+export function usesLegacyBagThresholds(gifts: CategoryGift[]): boolean {
+  return gifts.some((g) => g.min_value >= LEGACY_BAG_THRESHOLD_MIN);
+}
+
+/** Leaderboard position this gift row belongs to (1 = 1st in category). */
+export function resolveGiftPosition(gift: CategoryGift, gifts: CategoryGift[]): number {
+  if (gifts.length === 0) return 0;
+  if (!usesLegacyBagThresholds(gifts)) {
+    return Math.max(1, Math.round(gift.min_value));
+  }
+  const sorted = [...gifts].sort((a, b) => b.min_value - a.min_value);
+  const idx = sorted.findIndex((g) => g.id === gift.id);
+  return idx >= 0 ? idx + 1 : 0;
+}
+
+export function sortGiftsByPosition(gifts: CategoryGift[]): CategoryGift[] {
+  return [...gifts].sort(
+    (a, b) => resolveGiftPosition(a, gifts) - resolveGiftPosition(b, gifts)
+  );
+}
+
+export function isTargetReached(achievementPercent: number): boolean {
+  return achievementPercent >= 100;
+}
+
+/** Only the gift for this rank unlocks — not every lower tier. */
+export function isGiftUnlockedForContractor(
+  gift: CategoryGift,
+  category: Category,
+  rank: number | null,
+  achievementPercent: number
+): boolean {
+  if (rank === null || !isTargetReached(achievementPercent)) return false;
+  const gifts = getCategoryGifts(category);
+  return resolveGiftPosition(gift, gifts) === rank;
+}
+
+export function getUnlockedGiftForContractor(
+  category: Category,
+  rank: number | null,
+  achievementPercent: number
+): CategoryGift | null {
+  const gifts = getCategoryGifts(category);
+  return (
+    gifts.find((g) => isGiftUnlockedForContractor(g, category, rank, achievementPercent)) ??
+    null
+  );
+}
+
+/** Gift tied to the member's current rank (shown as next goal before target is met). */
+export function getGiftForRank(category: Category, rank: number | null): CategoryGift | null {
+  if (rank === null) return null;
+  const gifts = getCategoryGifts(category);
+  return gifts.find((g) => resolveGiftPosition(g, gifts) === rank) ?? null;
+}
+
+export function formatGiftPosition(lang: Lang, position: number): string {
+  const n = Math.max(1, Math.round(position));
+  if (lang === "te") {
+    if (n === 1) return "① స్థానం";
+    if (n === 2) return "② స్థానం";
+    if (n === 3) return "③ స్థానం";
+    if (n === 4) return "④ స్థానం";
+    return `${n} స్థానం`;
+  }
+  if (n === 1) return "1st place";
+  if (n === 2) return "2nd place";
+  if (n === 3) return "3rd place";
+  return `${n}th place`;
+}
+
 export function formatGiftThreshold(lang: Lang, category: Category, minValue: number): string {
+  const gifts = getCategoryGifts(category);
+  if (!usesLegacyBagThresholds(gifts)) {
+    return formatGiftPosition(lang, minValue);
+  }
   const n = Math.round(minValue);
   if (isBagsCategory(category)) {
     return lang === "te" ? `${n}+ బ్యాగులు` : `${n}+ bags`;
@@ -118,26 +197,27 @@ export function formatGiftThreshold(lang: Lang, category: Category, minValue: nu
   return lang === "te" ? `${formatTargetValueBilingual(lang, category, n)}+` : `${n}+ (target)`;
 }
 
+/** @deprecated Use getUnlockedGiftForContractor — rank + target, not cumulative tiers */
 export function getHighestUnlockedGift(
   category: Category,
-  monthlyValue: number
+  _monthlyValue: number
 ): CategoryGift | null {
-  return getCategoryGifts(category).find((g) => monthlyValue >= g.min_value) ?? null;
+  return null;
 }
 
+/** @deprecated Use getGiftForRank */
 export function getNextCategoryGift(
   category: Category,
-  monthlyValue: number
+  _monthlyValue: number
 ): CategoryGift | null {
-  const ascending = [...getCategoryGifts(category)].sort((a, b) => a.min_value - b.min_value);
-  return ascending.find((g) => monthlyValue < g.min_value) ?? null;
+  return null;
 }
 
 export function sanitizeRewardsForSave(rewards: CategoryGift[]): CategoryGift[] {
-  return rewards
+  const cleaned = rewards
     .map((g) => normalizeGift(g))
-    .filter((g): g is CategoryGift => g !== null)
-    .sort((a, b) => b.min_value - a.min_value);
+    .filter((g): g is CategoryGift => g !== null);
+  return sortGiftsByPosition(cleaned);
 }
 
 export function validateRewardsDraft(
@@ -149,7 +229,7 @@ export function validateRewardsDraft(
     return {
       ok: false,
       message:
-        "Each gift needs a name and min value | ప్రతి బహుమతికి పేరు, కనీసం కావాలి",
+        "Each gift needs a name and position | ప్రతి బహుమతికి పేరు, స్థానం కావాలి",
     };
   }
   for (const g of rewards) {
@@ -162,17 +242,33 @@ export function validateRewardsDraft(
     if (!g.min_value || g.min_value < 1) {
       return {
         ok: false,
-        message: "Min to unlock must be at least 1 | కనీసం 1 ఉండాలి",
+        message: "Position must be at least 1 | స్థానం కనీసం 1",
+      };
+    }
+  }
+  if (cleaned.length > 0 && !usesLegacyBagThresholds(cleaned)) {
+    const positions = cleaned.map((g) => Math.round(g.min_value));
+    if (positions.some((p) => p > 50)) {
+      return {
+        ok: false,
+        message:
+          "Use position 1, 2, 3… (1 = 1st place) | స్థానం 1, 2, 3… పెట్టండి (1 = మొదటి)",
+      };
+    }
+    if (new Set(positions).size !== positions.length) {
+      return {
+        ok: false,
+        message: "Each position must be unique | ప్రతి స్థానం వేరుగా ఉండాలి",
       };
     }
   }
   return { ok: true, cleaned };
 }
 
-export function newEmptyGiftRow(): CategoryGift {
+export function newEmptyGiftRow(nextPosition = 1): CategoryGift {
   return {
     id: `gift-${Date.now()}`,
-    min_value: 100,
+    min_value: nextPosition,
     name_english: "",
     name_telugu: "",
     description_english: "",

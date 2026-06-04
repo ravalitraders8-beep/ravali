@@ -422,11 +422,8 @@ export function AdminDashboard() {
   };
 
   const addGiftRow = (cat: Category) => {
-    const { targetVal } = readCategoryPlanFromForm(cat);
-    const row = newEmptyGiftRow();
-    if (targetVal > 0) {
-      row.min_value = Math.max(1, Math.round(targetVal / 2));
-    }
+    const nextPosition = (rewardsDraft[cat.id]?.length ?? 0) + 1;
+    const row = newEmptyGiftRow(nextPosition);
     setRewardsDraft((prev) => ({
       ...prev,
       [cat.id]: [...(prev[cat.id] ?? []), row],
@@ -1391,8 +1388,8 @@ export function AdminDashboard() {
               <p className="mb-4 rounded-xl bg-blue-50 p-3 text-sm font-medium text-blue-900">
                 {ta(
                   lang,
-                  "Set monthly target, period dates, and gifts per category. Contractors see the same gifts in the app.",
-                  "ప్రతి పనికి లక్ష్యం, తేదీలు, బహుమతులు — App లో అలాగే కనిపిస్తాయి."
+                  "Set target and one gift per rank (1 = 1st place). Members unlock only their rank's gift after target is reached.",
+                  "లక్ష్యం + ప్రతి స్థానానికి ఒక బహుమతి (1 = మొదటి). లక్ష్యం చేరిన తర్వాత మీ స్థానం బహుమతి మాత్రమే."
                 )}
               </p>
               {categories.map((cat) => {

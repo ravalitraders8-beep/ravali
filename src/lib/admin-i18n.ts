@@ -28,7 +28,7 @@ export const adminLabels = {
   rewardHistory: { en: "Reward History", te: "బహుమతి లిస్టు" },
   categoryTargets: { en: "Targets & Gifts", te: "లక్ష్యం & బహుమతులు" },
   rewardsColumn: { en: "Gifts for this category", te: "ఈ పని బహుమతులు" },
-  minToUnlock: { en: "Min to unlock", te: "అవసరం" },
+  minToUnlock: { en: "Position (1 = 1st)", te: "స్థానం (1 = మొదటి)" },
   giftNameEn: { en: "Gift name (English)", te: "బహుమతి పేరు (English)" },
   giftNameTe: { en: "Gift name (Telugu)", te: "బహుమతి పేరు (తెలుగు)" },
   giftImage: { en: "Image", te: "ఫోటో" },

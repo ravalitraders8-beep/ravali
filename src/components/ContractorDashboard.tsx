@@ -74,7 +74,13 @@ export function ContractorDashboard({ data }: ContractorDashboardProps) {
           currentContractorId={contractor.id}
         />
 
-        <GiftsSection category={category} monthlyAmount={monthlyAmount} />
+        <GiftsSection
+          category={category}
+          monthlyAmount={monthlyAmount}
+          achievementPercent={achievementPercent}
+          contractorId={contractor.id}
+          leaderboard={leaderboard}
+        />
       </main>
 
       <ContactShopButton />

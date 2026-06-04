@@ -5,7 +5,14 @@ import Image from "next/image";
 import { HelpPanelBackground } from "./HelpPanelBackground";
 import { ShopLogo } from "./ShopLogo";
 import { getCategoryAbout } from "@/lib/category-about";
-import { formatGiftThreshold, getCategoryGifts } from "@/lib/category-gifts";
+import {
+  formatGiftPosition,
+  formatGiftThreshold,
+  getCategoryGifts,
+  resolveGiftPosition,
+  sortGiftsByPosition,
+  usesLegacyBagThresholds,
+} from "@/lib/category-gifts";
 import { aboutUs } from "@/lib/about-us";
 import { SHOP_PHONE, LOGO_EN_PATH, LOGO_TE_PATH } from "@/lib/constants";
 import { userMotivation } from "@/lib/motivation";
@@ -152,18 +159,23 @@ export function SideHelpButton({ bottomOffset = "bottom-24", category }: SideHel
               </h3>
               {category && getCategoryGifts(category).length > 0 ? (
                 <ul className="mt-2 space-y-2 text-base font-semibold text-gray-700">
-                  {[...getCategoryGifts(category)]
-                    .sort((a, b) => a.min_value - b.min_value)
-                    .map((g) => (
+                  {sortGiftsByPosition(getCategoryGifts(category)).map((g) => {
+                    const gifts = getCategoryGifts(category);
+                    const legacy = usesLegacyBagThresholds(gifts);
+                    const position = resolveGiftPosition(g, gifts);
+                    return (
                       <li key={g.id} className="flex items-center gap-2">
                         <span className="font-black text-[#e85d00]">
-                          {formatGiftThreshold(lang, category, g.min_value)}
+                          {legacy
+                            ? formatGiftThreshold(lang, category, g.min_value)
+                            : formatGiftPosition(lang, position)}
                         </span>
                         <span>
                           {pickBilingual(lang, g.name_english, g.name_telugu)}
                         </span>
                       </li>
-                    ))}
+                    );
+                  })}
                 </ul>
               ) : (
                 <p className="mt-2 text-base leading-relaxed text-gray-700">

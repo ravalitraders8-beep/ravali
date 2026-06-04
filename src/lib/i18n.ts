@@ -49,6 +49,30 @@ export const labels = {
     en: "Reach targets — unlock gifts from the shop",
     te: "లక్ష్యం చేరండి — షాప్ బహుమతులు",
   },
+  giftRankHint: {
+    en: "Each place has one gift. You get only your rank's gift after target is reached.",
+    te: "ప్రతి స్థానానికి ఒక్క బహుమతి. లక్ష్యం చేరిన తర్వాత మీ స్థానం బహుమతి మాత్రమే.",
+  },
+  giftNeedTarget: {
+    en: "Reach monthly target to unlock your gift",
+    te: "లక్ష్యం చేరితే మీ బహుమతి తెరుచుకుంటుంది",
+  },
+  giftNeedActivity: {
+    en: "Add amount this month to qualify",
+    te: "ఈ నెల మొత్తం జోడించండి",
+  },
+  giftWrongRank: {
+    en: "This gift is for #{n} place only",
+    te: "ఈ బహుమతి #{n} స్థానానికి మాత్రమే",
+  },
+  nextRankGift: {
+    en: "You are #{rank} — reach target for: {name}",
+    te: "మీరు #{rank} స్థానం — లక్ష్యం చేరితే: {name}",
+  },
+  giftUnlockedRank: {
+    en: "Target reached at #{rank} place — your gift is ready!",
+    te: "#{rank} స్థానం + లక్ష్యం — మీ బహుమతి రెడీ!",
+  },
   amountToGo: { en: "{n} more to unlock", te: "ఇంకా {n} కావాలి" },
   contactShop: { en: "Call Shop", te: "షాప్‌కు కాల్" },
   phoneLoginTitle: { en: "Member Login", te: "సభ్యుల లాగిన్" },
