@@ -2,13 +2,14 @@
 
 import Image from "next/image";
 import {
-  formatBagsThreshold,
-  getNextMasonGift,
-  getHighestUnlockedMasonGift,
-  MASON_BAG_GIFTS,
-  type MasonBagGift,
-} from "@/lib/mason-gifts";
+  formatGiftThreshold,
+  getCategoryGifts,
+  getHighestUnlockedGift,
+  getNextCategoryGift,
+  type CategoryGift,
+} from "@/lib/category-gifts";
 import { isBagsCategory } from "@/lib/category-period";
+import { formatINR } from "@/lib/currency";
 import { labels, t } from "@/lib/i18n";
 import { useLang } from "@/context/LangContext";
 import type { Category } from "@/lib/types";
@@ -18,20 +19,25 @@ interface GiftsSectionProps {
   monthlyAmount: number;
 }
 
-function MasonGiftCard({
+function CategoryGiftCard({
   gift,
-  monthlyBags,
+  category,
+  monthlyValue,
 }: {
-  gift: MasonBagGift;
-  monthlyBags: number;
+  gift: CategoryGift;
+  category: Category;
+  monthlyValue: number;
 }) {
   const { lang } = useLang();
-  const unlocked = monthlyBags >= gift.minBags;
+  const unlocked = monthlyValue >= gift.min_value;
   const isCurrent =
-    getHighestUnlockedMasonGift(monthlyBags)?.id === gift.id && unlocked;
-  const remaining = Math.max(0, gift.minBags - monthlyBags);
+    getHighestUnlockedGift(category, monthlyValue)?.id === gift.id && unlocked;
+  const remaining = Math.max(0, gift.min_value - monthlyValue);
   const progress =
-    gift.minBags > 0 ? Math.min(100, Math.round((monthlyBags / gift.minBags) * 100)) : 0;
+    gift.min_value > 0
+      ? Math.min(100, Math.round((monthlyValue / gift.min_value) * 100))
+      : 0;
+  const bags = isBagsCategory(category);
 
   return (
     <div
@@ -47,8 +53,8 @@ function MasonGiftCard({
         }`}
       >
         <Image
-          src={gift.imageSrc}
-          alt={lang === "te" ? gift.imageAltTe : gift.imageAltEn}
+          src={gift.image_src}
+          alt={lang === "te" ? gift.name_telugu : gift.name_english}
           width={72}
           height={72}
           className="h-full w-full object-contain"
@@ -65,14 +71,18 @@ function MasonGiftCard({
 
       <div className="min-w-0 flex-1">
         <p className="text-lg font-black text-[#1a2744]">
-          {lang === "te" ? gift.nameTe : gift.nameEn}
+          {lang === "te" ? gift.name_telugu : gift.name_english}
         </p>
         <p className="text-sm font-bold text-[#e85d00]">
-          {formatBagsThreshold(lang, gift.minBags)}
+          {formatGiftThreshold(lang, category, gift.min_value)}
         </p>
-        <p className="mt-0.5 text-sm text-gray-600">
-          {lang === "te" ? gift.descriptionTe : gift.descriptionEn}
-        </p>
+        {(gift.description_english || gift.description_telugu) && (
+          <p className="mt-0.5 text-sm text-gray-600">
+            {lang === "te"
+              ? gift.description_telugu ?? gift.description_english
+              : gift.description_english}
+          </p>
+        )}
 
         {!unlocked && remaining > 0 && (
           <div className="mt-2">
@@ -83,10 +93,15 @@ function MasonGiftCard({
               />
             </div>
             <p className="mt-1 text-xs font-bold text-gray-600">
-              {t(lang, labels.bagsToGo.en, labels.bagsToGo.te).replace(
-                "{n}",
-                String(remaining)
-              )}
+              {bags
+                ? t(lang, labels.bagsToGo.en, labels.bagsToGo.te).replace(
+                    "{n}",
+                    String(remaining)
+                  )
+                : t(lang, labels.amountToGo.en, labels.amountToGo.te).replace(
+                    "{n}",
+                    formatINR(remaining)
+                  )}
             </p>
           </div>
         )}
@@ -101,16 +116,18 @@ function MasonGiftCard({
   );
 }
 
-/** Mason: bag-milestone gifts. Other trades: hidden (no gold/bronze tiers). */
+/** Gifts from admin Targets & Gifts plan for this category */
 export function GiftsSection({ category, monthlyAmount }: GiftsSectionProps) {
   const { lang } = useLang();
+  const gifts = getCategoryGifts(category);
+  const monthlyValue = Math.round(monthlyAmount);
 
-  if (!isBagsCategory(category)) {
+  if (gifts.length === 0) {
     return null;
   }
 
-  const monthlyBags = Math.round(monthlyAmount);
-  const nextGift = getNextMasonGift(monthlyBags);
+  const nextGift = getNextCategoryGift(category, monthlyValue);
+  const bags = isBagsCategory(category);
 
   return (
     <div className="user-card bg-white">
@@ -123,22 +140,29 @@ export function GiftsSection({ category, monthlyAmount }: GiftsSectionProps) {
             {t(lang, labels.gifts.en, labels.gifts.te)}
           </h2>
           <p className="text-sm font-semibold text-gray-600">
-            {t(lang, labels.masonGiftsHint.en, labels.masonGiftsHint.te)}
+            {bags
+              ? t(lang, labels.masonGiftsHint.en, labels.masonGiftsHint.te)
+              : t(lang, labels.categoryGiftsHint.en, labels.categoryGiftsHint.te)}
           </p>
         </div>
       </div>
 
       {nextGift && (
         <p className="mb-4 rounded-xl bg-[#1a2744]/5 px-4 py-3 text-center text-sm font-bold text-[#1a2744]">
-          {t(lang, labels.nextMasonGift.en, labels.nextMasonGift.te)
-            .replace("{bags}", String(nextGift.minBags))
-            .replace("{name}", lang === "te" ? nextGift.nameTe : nextGift.nameEn)}
+          {t(lang, labels.nextCategoryGift.en, labels.nextCategoryGift.te)
+            .replace("{value}", formatGiftThreshold(lang, category, nextGift.min_value))
+            .replace("{name}", lang === "te" ? nextGift.name_telugu : nextGift.name_english)}
         </p>
       )}
 
       <div className="space-y-3">
-        {MASON_BAG_GIFTS.map((gift) => (
-          <MasonGiftCard key={gift.id} gift={gift} monthlyBags={monthlyBags} />
+        {gifts.map((gift) => (
+          <CategoryGiftCard
+            key={gift.id}
+            gift={gift}
+            category={category}
+            monthlyValue={monthlyValue}
+          />
         ))}
       </div>
     </div>

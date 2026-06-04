@@ -5,8 +5,7 @@ import Image from "next/image";
 import { HelpPanelBackground } from "./HelpPanelBackground";
 import { ShopLogo } from "./ShopLogo";
 import { getCategoryAbout } from "@/lib/category-about";
-import { isBagsCategory } from "@/lib/category-period";
-import { formatBagsThreshold, MASON_BAG_GIFTS } from "@/lib/mason-gifts";
+import { formatGiftThreshold, getCategoryGifts } from "@/lib/category-gifts";
 import { aboutUs } from "@/lib/about-us";
 import { SHOP_PHONE, LOGO_EN_PATH, LOGO_TE_PATH } from "@/lib/constants";
 import { userMotivation } from "@/lib/motivation";
@@ -151,16 +150,18 @@ export function SideHelpButton({ bottomOffset = "bottom-24", category }: SideHel
               <h3 className="mt-6 text-sm font-black uppercase tracking-wide text-[#1a2744]">
                 {t(lang, "Your Gifts", "మీ బహుమతులు")}
               </h3>
-              {category && isBagsCategory(category) ? (
+              {category && getCategoryGifts(category).length > 0 ? (
                 <ul className="mt-2 space-y-2 text-base font-semibold text-gray-700">
-                  {[...MASON_BAG_GIFTS]
-                    .sort((a, b) => a.minBags - b.minBags)
+                  {[...getCategoryGifts(category)]
+                    .sort((a, b) => a.min_value - b.min_value)
                     .map((g) => (
                       <li key={g.id} className="flex items-center gap-2">
                         <span className="font-black text-[#e85d00]">
-                          {formatBagsThreshold(lang, g.minBags)}
+                          {formatGiftThreshold(lang, category, g.min_value)}
                         </span>
-                        <span>{lang === "te" ? g.nameTe : g.nameEn}</span>
+                        <span>
+                          {lang === "te" ? g.name_telugu : g.name_english}
+                        </span>
                       </li>
                     ))}
                 </ul>

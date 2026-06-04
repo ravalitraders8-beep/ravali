@@ -62,16 +62,20 @@ export async function POST(request: NextRequest) {
       const { name_english, name_telugu, phone, village_english, village_telugu, category_id } =
         body;
 
-      if (!name_english?.trim() || !name_telugu?.trim() || !phone?.trim()) {
+      if (!name_english?.trim() || !phone?.trim()) {
         return NextResponse.json(
-          { message: "Please fill name (English + Telugu) and phone | పేరు మరియు ఫోన్ నమోదు చేయండి" },
+          { message: "Please fill name and phone | పేరు మరియు ఫోన్ నమోదు చేయండి" },
           { status: 400 }
         );
       }
 
+      const { resolveBilingualField } = await import("@/lib/transliterate");
+      const name = resolveBilingualField(name_english, name_telugu);
       const villageEn = String(village_english ?? "").trim();
       const villageTe = String(village_telugu ?? "").trim();
-      if (!villageEn && !villageTe) {
+      const village = resolveBilingualField(villageEn || villageTe, villageTe || villageEn);
+
+      if (!village.english) {
         return NextResponse.json(
           { message: "Please fill village | గ్రామం నమోదు చేయండి" },
           { status: 400 }
@@ -108,11 +112,11 @@ export async function POST(request: NextRequest) {
       const { data, error } = await supabase
         .from("contractors")
         .insert({
-          name_english: name_english.trim(),
-          name_telugu: name_telugu.trim(),
+          name_english: name.english,
+          name_telugu: name.telugu,
           phone: normalizedPhone,
-          village_english: villageEn || villageTe,
-          village_telugu: villageTe || villageEn,
+          village_english: village.english,
+          village_telugu: village.telugu,
           category_id,
           qr_token,
         })
@@ -123,7 +127,7 @@ export async function POST(request: NextRequest) {
       await supabase.from("admin_logs").insert({
         action: "add_contractor",
         target_contractor_id: data.id,
-        details: `Added ${name_telugu}`,
+        details: `Added ${name.telugu}`,
       });
       bustServerCache();
       return jsonNoStore(data);
@@ -137,9 +141,19 @@ export async function POST(request: NextRequest) {
 
       const updates: Record<string, string | boolean> = {};
 
+      const { resolveBilingualField } = await import("@/lib/transliterate");
+
       if (typeof body.is_active === "boolean") updates.is_active = body.is_active;
-      if (body.name_english?.trim()) updates.name_english = String(body.name_english).trim();
-      if (body.name_telugu?.trim()) updates.name_telugu = String(body.name_telugu).trim();
+      if (body.name_english != null || body.name_telugu != null) {
+        const name = resolveBilingualField(
+          String(body.name_english ?? ""),
+          String(body.name_telugu ?? "")
+        );
+        if (name.english) {
+          updates.name_english = name.english;
+          updates.name_telugu = name.telugu;
+        }
+      }
       if (body.phone != null) {
         const normalizedPhone = normalizePhoneInput(String(body.phone));
         if (!normalizedPhone) {
@@ -152,11 +166,13 @@ export async function POST(request: NextRequest) {
       }
       if (body.category_id) updates.category_id = body.category_id;
       if (body.village_english != null || body.village_telugu != null) {
-        const villageEn = String(body.village_english ?? "").trim();
-        const villageTe = String(body.village_telugu ?? "").trim();
-        if (villageEn || villageTe) {
-          updates.village_english = villageEn || villageTe;
-          updates.village_telugu = villageTe || villageEn;
+        const village = resolveBilingualField(
+          String(body.village_english ?? ""),
+          String(body.village_telugu ?? "")
+        );
+        if (village.english) {
+          updates.village_english = village.english;
+          updates.village_telugu = village.telugu;
         }
       }
 
@@ -374,26 +390,70 @@ export async function POST(request: NextRequest) {
       return jsonNoStore(data);
     }
 
-    if (body.action === "update_target") {
-      const { category_id, monthly_target_amount, period_start_date, period_end_date, target_unit } =
-        body;
-      const updates: Record<string, string | number> = {};
-      if (monthly_target_amount != null) updates.monthly_target_amount = monthly_target_amount;
+    if (body.action === "update_target" || body.action === "save_category_plan") {
+      const {
+        category_id,
+        monthly_target_amount,
+        period_start_date,
+        period_end_date,
+        target_unit,
+        category_rewards,
+      } = body;
+
+      if (!category_id) {
+        return NextResponse.json({ message: "Category id required" }, { status: 400 });
+      }
+
+      const { sanitizeRewardsForSave, validateRewardsDraft } = await import(
+        "@/lib/category-gifts"
+      );
+
+      const updates: Record<string, string | number | unknown> = {};
+      const targetNum =
+        monthly_target_amount != null ? Number(monthly_target_amount) : undefined;
+
+      if (monthly_target_amount != null && !Number.isNaN(targetNum)) {
+        updates.monthly_target_amount = targetNum;
+      }
       if (period_start_date) updates.period_start_date = period_start_date;
       if (period_end_date) updates.period_end_date = period_end_date;
       if (target_unit === "amount" || target_unit === "bags") updates.target_unit = target_unit;
+
+      const savingPlan = body.action === "save_category_plan" || category_rewards != null;
+      if (savingPlan) {
+        const list = Array.isArray(category_rewards) ? category_rewards : [];
+        const validation = validateRewardsDraft(list, targetNum ?? 0);
+        if (!validation.ok) {
+          return NextResponse.json({ message: validation.message }, { status: 400 });
+        }
+        updates.category_rewards = validation.cleaned;
+      }
 
       if (Object.keys(updates).length === 0) {
         return NextResponse.json({ message: "Nothing to update" }, { status: 400 });
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("categories")
         .update(updates)
-        .eq("id", category_id);
-      if (error) return NextResponse.json({ message: error.message }, { status: 400 });
+        .eq("id", category_id)
+        .select("*")
+        .single();
+
+      if (error) {
+        const msg = error.message.includes("category_rewards")
+          ? "Run migration 005_category_rewards.sql in Supabase | Supabase లో migration 005 రన్ చేయండి"
+          : error.message;
+        return NextResponse.json({ message: msg }, { status: 400 });
+      }
+
+      await supabase.from("admin_logs").insert({
+        action: "save_category_plan",
+        details: `Plan updated: ${data?.name_english ?? category_id}`,
+      });
+
       bustServerCache();
-      return jsonNoStore({ ok: true });
+      return jsonNoStore(data ?? { ok: true });
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });

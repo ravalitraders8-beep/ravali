@@ -25,6 +25,15 @@ export const labels = {
     en: "Next: {name} at {bags} bags",
     te: "తర్వాత: {bags} బ్యాగులకు {name}",
   },
+  nextCategoryGift: {
+    en: "Next: {name} at {value}",
+    te: "తర్వాత: {value} — {name}",
+  },
+  categoryGiftsHint: {
+    en: "Reach targets — unlock gifts from the shop",
+    te: "లక్ష్యం చేరండి — షాప్ బహుమతులు",
+  },
+  amountToGo: { en: "{n} more to unlock", te: "ఇంకా {n} కావాలి" },
   contactShop: { en: "Call Shop", te: "షాప్‌కు కాల్" },
   phoneLoginTitle: { en: "Member Login", te: "సభ్యుల లాగిన్" },
   phoneLoginHint: {

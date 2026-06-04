@@ -23,7 +23,20 @@ export const adminLabels = {
   recentTx: { en: "Recent Transactions", te: "ఇటీవలి చరిత్ర" },
   markReward: { en: "Mark Reward Delivered", te: "బహుమతి ఇచ్చారు" },
   rewardHistory: { en: "Reward History", te: "బహుమతి చరిత్ర" },
-  categoryTargets: { en: "Monthly Targets", te: "నెలవారీ లక్ష్యాలు" },
+  categoryTargets: { en: "Targets & Gifts", te: "లక్ష్యాలు & బహుమతులు" },
+  rewardsColumn: { en: "Gifts for this category", te: "ఈ వర్గం బహుమతులు" },
+  minToUnlock: { en: "Min to unlock", te: "అర్హత" },
+  giftNameEn: { en: "Gift name (English)", te: "బహుమతి పేరు (English)" },
+  giftNameTe: { en: "Gift name (Telugu)", te: "బహుమతి పేరు (తెలుగు)" },
+  giftImage: { en: "Image", te: "చిత్రం" },
+  addGiftRow: { en: "Add gift", te: "బహుమతి జోడించండి" },
+  savePlan: { en: "Save target & gifts", te: "లక్ష్యం & బహుమతులు సేవ్" },
+  giftRemoved: { en: "Gift removed and saved", te: "బహుమతి తొలగించి సేవ్ అయింది" },
+  confirmRemoveGift: {
+    en: "Remove this gift and save to the database?",
+    te: "ఈ బహుమతి తొలగించి డేటాబేస్‌లో సేవ్ చేయాలా?",
+  },
+  deliverRewards: { en: "Mark gift delivered", te: "బహుమతి ఇచ్చారు" },
   save: { en: "Save", te: "సేవ్" },
   add: { en: "Add", te: "జోడించండి" },
   download: { en: "Download Card", te: "కార్డ్ డౌన్‌లోడ్" },
@@ -65,6 +78,9 @@ export const adminLabels = {
   deleted: { en: "Deleted!", te: "తొలగించబడింది!" },
   inactive: { en: "Inactive", te: "నిలిపివేయబడింది" },
   searchContractor: { en: "Search name or phone", te: "పేరు లేదా ఫోన్" },
+  searchRegistry: { en: "Search contractors", te: "కాంట్రాక్టర్లు వెతకండి" },
+  noSearchResults: { en: "No contractors match your search", te: "మీ శోధనకు ఎవరూ లేరు" },
+  searchFound: { en: "found", te: "కనుగొనబడింది" },
   loginHint: {
     en: "Contractors sign in with this phone number on the app",
     te: "కాంట్రాక్టర్లు ఈ ఫోన్ నంబర్ తో App లో లాగిన్ అవుతారు",
@@ -110,10 +126,5 @@ export const adminLabels = {
   confirmActivate: {
     en: "Activate this contractor again? They can log in with their phone number.",
     te: "మళ్ళీ సక్రియం చేయాలా? ఫోన్ నంబర్ తో లాగిన్ అవుతారు.",
-  },
-  masonGiftsPlan: { en: "Mason bag gifts (app)", te: "మేస్త్రీ బ్యాగ్ బహుమతులు" },
-  masonGiftsPlanHint: {
-    en: "Shown to masons in the app. Admin edit coming soon — fixed for now.",
-    te: "App లో మేస్త్రీలకు చూపిస్తాం. త్వరలో admin నుండి మార్చుతారు.",
   },
 };

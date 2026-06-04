@@ -1,16 +1,32 @@
 import Sanscript from "@indic-transliteration/sanscript";
 
-/** Known place/name corrections for better Telugu output */
+/**
+ * Curated Telugu — names, trades, gifts, places (checked spelling).
+ * Full phrase match runs before word-by-word transliteration.
+ */
 const KNOWN_TELUGU: Record<string, string> = {
+  // Places
   nalgonda: "నల్గొండ",
   miryalaguda: "మిర్యాలగూడ",
   nakrekal: "నాక్రేకల",
   chandampet: "చందంపేట",
-  tirumalgiri: "తిరుమల్‌గిరి",
+  tirumalgiri: "తిరుమలగిరి",
   palakurthy: "పాలకుర్తి",
   palakurthi: "పాలకుర్తి",
   warangal: "వరంగల్",
   hyderabad: "హైదరాబాద్",
+  secunderabad: "సికింద్రాబాద్",
+  karimnagar: "కరీంనగర్",
+  khammam: "ఖమ్మం",
+  suryapet: "సూర్యాపేట",
+  // Trades
+  painter: "పెయింటర్",
+  electrician: "ఎలక్ట్రీషియన్",
+  plumber: "ప్లంబర్",
+  mason: "మేస్త్రి",
+  carpenter: "వడ్రంగి",
+  contractor: "కాంట్రాక్టర్",
+  // Names
   ramesh: "రమేష్",
   suresh: "సురేష్",
   rohith: "రోహిత్",
@@ -21,37 +37,159 @@ const KNOWN_TELUGU: Record<string, string> = {
   rajesh: "రాజేష్",
   raju: "రాజు",
   kumar: "కుమార్",
+  kavya: "కావ్య",
+  shekar: "శేకర్",
+  sekhar: "శేకర్",
+  saketh: "సాకేత్",
+  sriman: "శ్రీమాన్",
+  // Gifts & items
+  tv: "టీవీ",
+  "tv gift": "టీవీ బహుమతి",
+  television: "టీవీ",
+  grinder: "గ్రైండర్",
+  "mixer grinder": "మిక్సీ గ్రైండర్",
+  mixer: "మిక్సీ",
+  "iron box": "ఇనుము బాక్స్",
+  iron: "ఇనుము",
+  design: "డిజైన్",
+  kit: "కిట్",
+  "design kit": "డిజైన్ కిట్",
+  gift: "బహుమతి",
+  // Common words
+  shop: "షాప్",
+  village: "గ్రామం",
+  target: "లక్ష్యం",
+  amount: "మొత్తం",
+  bags: "బ్యాగులు",
+  cement: "సిమెంట్",
 };
 
+/** Roman → ITRANS hints for clearer Telugu phonetics */
+const PHONETIC_REPLACEMENTS: [RegExp, string][] = [
+  [/ch/g, "c"],
+  [/sh/g, "S"],
+  [/th/g, "t"],
+  [/dh/g, "d"],
+  [/bh/g, "b"],
+  [/ph/g, "ph"],
+  [/kh/g, "kh"],
+  [/gh/g, "g"],
+  [/ee/g, "I"],
+  [/oo/g, "U"],
+  [/aa/g, "A"],
+  [/ii/g, "I"],
+  [/uu/g, "U"],
+  [/au/g, "au"],
+  [/ai/g, "ai"],
+];
+
 function normalizeKey(text: string): string {
-  return text.trim().toLowerCase().replace(/\s+/g, " ");
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/[''`]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+/** Keep Telugu script, digits, common punctuation; strip stray Latin */
+export function sanitizeTeluguOutput(text: string): string {
+  let s = text.trim();
+  if (!s) return "";
+  s = s.replace(/[a-zA-Z]+/g, "");
+  s = s.replace(/\s+/g, " ");
+  s = s.replace(/([।.,])\1+/g, "$1");
+  return dedupeTeluguWords(s).trim();
+}
+
+/** Remove repeated consecutive words (prevents duplication bugs) */
+export function dedupeTeluguWords(text: string): string {
+  const parts = text.split(/\s+/).filter(Boolean);
+  const out: string[] = [];
+  for (const p of parts) {
+    if (out.length === 0 || out[out.length - 1] !== p) out.push(p);
+  }
+  return out.join(" ");
+}
+
+function prepareRomanForItrans(word: string): string {
+  let w = word.toLowerCase().replace(/[^a-z]/g, "");
+  if (!w) return "";
+  for (const [re, rep] of PHONETIC_REPLACEMENTS) {
+    w = w.replace(re, rep);
+  }
+  return w;
+}
+
+function transliterateWord(word: string): string {
+  const key = normalizeKey(word);
+  if (KNOWN_TELUGU[key]) return KNOWN_TELUGU[key];
+
+  const roman = prepareRomanForItrans(word);
+  if (!roman) return word;
+
+  try {
+    const viaItrans = Sanscript.t(roman, "itrans", "telugu");
+    if (viaItrans && /[\u0C00-\u0C7F]/.test(viaItrans)) {
+      return sanitizeTeluguOutput(viaItrans);
+    }
+  } catch {
+    /* fall through */
+  }
+
+  try {
+    const viaHk = Sanscript.t(roman, "hk", "telugu");
+    if (viaHk && /[\u0C00-\u0C7F]/.test(viaHk)) {
+      return sanitizeTeluguOutput(viaHk);
+    }
+  } catch {
+    /* fall through */
+  }
+
+  return word;
 }
 
 /**
  * Transliterate English/Roman text to Telugu script.
- * Uses dictionary for known words, then phonetic transliteration.
+ * Dictionary → phrase → word (no duplicate joins).
  */
 export function englishToTelugu(text: string): string {
   const trimmed = text.trim();
   if (!trimmed) return "";
 
-  const key = normalizeKey(trimmed);
-  if (KNOWN_TELUGU[key]) return KNOWN_TELUGU[key];
+  const phraseKey = normalizeKey(trimmed);
+  if (KNOWN_TELUGU[phraseKey]) return KNOWN_TELUGU[phraseKey];
 
-  // Multi-word: transliterate each word
-  const words = trimmed.split(/\s+/);
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "";
+
   if (words.length > 1) {
-    return words.map((w) => englishToTelugu(w)).join(" ");
+    const phrase = words.map((w) => transliterateWord(w)).join(" ");
+    return sanitizeTeluguOutput(phrase);
   }
 
-  try {
-    const roman = trimmed.toLowerCase();
-    const result = Sanscript.t(roman, "itrans", "telugu");
-    // Capitalize first letter visually (Telugu doesn't have case — return as-is)
-    return result || trimmed;
-  } catch {
-    return trimmed;
+  return sanitizeTeluguOutput(transliterateWord(words[0]));
+}
+
+/** Resolve English + optional Telugu for DB — server & client use same logic */
+export function resolveBilingualField(
+  english: string,
+  telugu?: string
+): { english: string; telugu: string } {
+  const en = english.trim();
+  let te = telugu?.trim() ?? "";
+
+  if (!en && te) {
+    return { english: te, telugu: sanitizeTeluguOutput(te) };
   }
+  if (!en) {
+    return { english: "", telugu: "" };
+  }
+  if (!te || te === en) {
+    te = englishToTelugu(en);
+  } else {
+    te = sanitizeTeluguOutput(te);
+  }
+  return { english: en, telugu: te || englishToTelugu(en) };
 }
 
 /** Format bilingual display: "English | Telugu" */

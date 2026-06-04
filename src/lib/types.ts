@@ -1,3 +1,13 @@
+export interface CategoryGift {
+  id: string;
+  min_value: number;
+  name_english: string;
+  name_telugu: string;
+  description_english?: string;
+  description_telugu?: string;
+  image_src: string;
+}
+
 export interface Category {
   id: string;
   name_english: string;
@@ -8,6 +18,7 @@ export interface Category {
   target_unit?: "amount" | "bags";
   period_start_date?: string | null;
   period_end_date?: string | null;
+  category_rewards?: CategoryGift[] | unknown;
 }
 
 export interface Contractor {

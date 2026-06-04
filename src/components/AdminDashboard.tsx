@@ -26,13 +26,20 @@ import {
   periodStatus,
 } from "@/lib/category-period";
 import { useLang } from "@/context/LangContext";
-import { englishToTelugu } from "@/lib/transliterate";
+import { resolveBilingualField } from "@/lib/transliterate";
 import { clearAdminPinSession } from "@/lib/session";
-import { formatBagsThreshold, MASON_BAG_GIFTS } from "@/lib/mason-gifts";
+import {
+  GIFT_IMAGE_PRESETS,
+  getCategoryGifts,
+  newEmptyGiftRow,
+  parseCategoryRewards,
+  validateRewardsDraft,
+  type CategoryGift,
+} from "@/lib/category-gifts";
 import { TRANSACTION_REASONS } from "@/lib/types";
 import type { Category, Contractor, RewardLevel, Transaction } from "@/lib/types";
 
-type Tab = "overview" | "contractors" | "registry" | "amounts" | "leaderboard" | "rewards" | "targets";
+type Tab = "overview" | "contractors" | "registry" | "amounts" | "leaderboard" | "targets";
 
 const TABS: { key: Tab; icon: string; label: keyof typeof adminLabels }[] = [
   { key: "overview", icon: "📊", label: "overview" },
@@ -40,13 +47,12 @@ const TABS: { key: Tab; icon: string; label: keyof typeof adminLabels }[] = [
   { key: "registry", icon: "📋", label: "registry" },
   { key: "amounts", icon: "₹", label: "amounts" },
   { key: "leaderboard", icon: "🏆", label: "leaderboard" },
-  { key: "rewards", icon: "🎁", label: "rewards" },
   { key: "targets", icon: "🎯", label: "targets" },
 ];
 
 /** Bottom bar on mobile — 4 main tabs + Menu for the rest */
 const MOBILE_MAIN_TAB_KEYS: Tab[] = ["overview", "amounts", "contractors", "registry"];
-const MOBILE_MENU_TAB_KEYS: Tab[] = ["leaderboard", "rewards", "targets"];
+const MOBILE_MENU_TAB_KEYS: Tab[] = ["leaderboard", "targets"];
 
 const MOBILE_MAIN_TABS = MOBILE_MAIN_TAB_KEYS.map((key) => TABS.find((t) => t.key === key)!);
 const MOBILE_MENU_TABS = MOBILE_MENU_TAB_KEYS.map((key) => TABS.find((t) => t.key === key)!);
@@ -107,6 +113,8 @@ export function AdminDashboard() {
   const [editingTxId, setEditingTxId] = useState<string | null>(null);
   const [txCategoryId, setTxCategoryId] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [registrySearch, setRegistrySearch] = useState("");
+  const [rewardsDraft, setRewardsDraft] = useState<Record<string, CategoryGift[]>>({});
   const contractorName = (c: Contractor) =>
     lang === "te" ? c.name_telugu : c.name_english;
 
@@ -132,10 +140,27 @@ export function AdminDashboard() {
     if (categoryFilter !== "all") {
       list = list.filter((c) => c.category_id === categoryFilter);
     }
+    const q = registrySearch.trim().toLowerCase();
+    if (q) {
+      list = list.filter((c) => {
+        const cat = categories.find((catRow) => catRow.id === c.category_id);
+        const catLabel = cat
+          ? `${cat.name_english} ${cat.name_telugu}`.toLowerCase()
+          : "";
+        return (
+          c.name_english.toLowerCase().includes(q) ||
+          c.name_telugu.includes(q) ||
+          c.phone.includes(q) ||
+          c.village_english.toLowerCase().includes(q) ||
+          c.village_telugu.includes(q) ||
+          catLabel.includes(q)
+        );
+      });
+    }
     return [...list].sort((a, b) =>
       contractorName(a).localeCompare(contractorName(b))
     );
-  }, [activeContractors, categoryFilter, lang]);
+  }, [activeContractors, categoryFilter, registrySearch, categories, lang]);
 
   const txContractors = useMemo(() => {
     if (!txCategoryId) return activeContractors;
@@ -254,25 +279,27 @@ export function AdminDashboard() {
 
   const saveEditContractor = async () => {
     if (!editingContractorId) return;
-    const nameEn = editContractor.name_english.trim();
-    let nameTe = editContractor.name_telugu.trim();
-    if (!nameTe && nameEn) nameTe = englishToTelugu(nameEn);
-    if (!nameEn || editContractor.phone.length < 10) {
+    const name = resolveBilingualField(
+      editContractor.name_english,
+      editContractor.name_telugu
+    );
+    const village = resolveBilingualField(
+      editContractor.village_english || name.english,
+      editContractor.village_telugu
+    );
+    if (!name.english || editContractor.phone.length < 10) {
       showToast(L("failed"));
       return;
     }
-    const villageEn = editContractor.village_english.trim() || nameEn;
-    let villageTe = editContractor.village_telugu.trim();
-    if (!villageTe && villageEn) villageTe = englishToTelugu(villageEn);
 
     const ok = await postAction({
       action: "update_contractor",
       id: editingContractorId,
-      name_english: nameEn,
-      name_telugu: nameTe,
+      name_english: name.english,
+      name_telugu: name.telugu,
       phone: editContractor.phone,
-      village_english: villageEn,
-      village_telugu: villageTe,
+      village_english: village.english,
+      village_telugu: village.telugu,
       category_id: editContractor.category_id,
     });
     if (ok) {
@@ -315,25 +342,126 @@ export function AdminDashboard() {
     await loadAll(true);
   };
 
-  const saveCategoryTarget = async (cat: Category) => {
+  const syncRewardsDraft = useCallback((cats: Category[]) => {
+    const draft: Record<string, CategoryGift[]> = {};
+    for (const cat of cats) {
+      draft[cat.id] = getCategoryGifts(cat);
+    }
+    setRewardsDraft(draft);
+  }, []);
+
+  const updateGiftDraft = (
+    catId: string,
+    index: number,
+    field: keyof CategoryGift,
+    value: string | number
+  ) => {
+    setRewardsDraft((prev) => {
+      const list = [...(prev[catId] ?? [])];
+      const row = { ...list[index], [field]: value };
+      if (field === "image_src" && typeof value === "string") {
+        const preset = GIFT_IMAGE_PRESETS.find((p) => p.value === value);
+        if (preset) {
+          row.name_english = preset.labelEn;
+          row.name_telugu = preset.labelTe;
+        }
+      }
+      list[index] = row;
+      return { ...prev, [catId]: list };
+    });
+  };
+
+  const updateGiftNames = (
+    catId: string,
+    index: number,
+    name_english: string,
+    name_telugu: string
+  ) => {
+    setRewardsDraft((prev) => {
+      const list = [...(prev[catId] ?? [])];
+      list[index] = { ...list[index], name_english, name_telugu };
+      return { ...prev, [catId]: list };
+    });
+  };
+
+  const addGiftRow = (cat: Category) => {
+    const { targetVal } = readCategoryPlanFromForm(cat);
+    const row = newEmptyGiftRow();
+    if (targetVal > 0) {
+      row.min_value = Math.max(1, Math.round(targetVal / 2));
+    }
+    setRewardsDraft((prev) => ({
+      ...prev,
+      [cat.id]: [...(prev[cat.id] ?? []), row],
+    }));
+  };
+
+  const readCategoryPlanFromForm = (cat: Category) => {
     const targetVal = Number(
-      (document.getElementById(`target-${cat.id}`) as HTMLInputElement).value
+      (document.getElementById(`target-${cat.id}`) as HTMLInputElement)?.value ??
+        cat.monthly_target_amount
     );
-    const period_start_date = (
-      document.getElementById(`period-start-${cat.id}`) as HTMLInputElement
-    ).value;
-    const period_end_date = (
-      document.getElementById(`period-end-${cat.id}`) as HTMLInputElement
-    ).value;
-    const ok = await postAction({
-      action: "update_target",
+    const period_start_date =
+      (document.getElementById(`period-start-${cat.id}`) as HTMLInputElement)?.value ??
+      cat.period_start_date?.slice(0, 10) ??
+      "";
+    const period_end_date =
+      (document.getElementById(`period-end-${cat.id}`) as HTMLInputElement)?.value ??
+      cat.period_end_date?.slice(0, 10) ??
+      "";
+    return { targetVal, period_start_date, period_end_date };
+  };
+
+  const saveCategoryPlan = async (
+    cat: Category,
+    rewardsOverride?: CategoryGift[],
+    options?: { silentToast?: boolean }
+  ): Promise<boolean> => {
+    const { targetVal, period_start_date, period_end_date } = readCategoryPlanFromForm(cat);
+    const rewards = rewardsOverride ?? rewardsDraft[cat.id] ?? [];
+
+    const validation = validateRewardsDraft(rewards, targetVal);
+    if (!validation.ok) {
+      showToast(validation.message);
+      return false;
+    }
+
+    const { ok, data } = await adminPostAction({
+      action: "save_category_plan",
       category_id: cat.id,
       monthly_target_amount: targetVal,
       period_start_date,
       period_end_date,
       target_unit: isBagsCategory(cat) ? "bags" : "amount",
+      category_rewards: validation.cleaned,
     });
-    if (ok) await loadAll(true);
+
+    if (!ok) {
+      showToast(String((data as { message?: string }).message ?? L("failed")));
+      return false;
+    }
+
+    const saved = data as Category;
+    if (saved?.id) {
+      setRewardsDraft((prev) => ({
+        ...prev,
+        [cat.id]: parseCategoryRewards(saved.category_rewards),
+      }));
+    }
+    if (!options?.silentToast) showToast(L("saved"));
+    await loadAll(true);
+    return true;
+  };
+
+  const removeGiftRow = async (cat: Category, index: number) => {
+    const msg = adminLabels.confirmRemoveGift;
+    if (!window.confirm(ta(lang, msg.en, msg.te))) return;
+
+    const next = (rewardsDraft[cat.id] ?? []).filter((_, i) => i !== index);
+    setRewardsDraft((prev) => ({ ...prev, [cat.id]: next }));
+
+    const ok = await saveCategoryPlan(cat, next, { silentToast: true });
+    if (ok) showToast(L("giftRemoved"));
   };
 
   const loadAll = useCallback(async (force = false) => {
@@ -345,6 +473,7 @@ export function AdminDashboard() {
       const cats = (data.categories as Category[]) ?? [];
       setContractors((data.contractors as Contractor[]) ?? []);
       setCategories(cats);
+      syncRewardsDraft(cats);
       setRewardLevels((data.rewardLevels as RewardLevel[]) ?? []);
       setTransactions((data.transactions as Transaction[]) ?? []);
       setRewards((data.rewards as Array<Record<string, unknown>>) ?? []);
@@ -383,7 +512,7 @@ export function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [lang]);
+  }, [lang, syncRewardsDraft]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- mount fetch from Supabase
@@ -647,24 +776,26 @@ export function AdminDashboard() {
                 <button
                   type="button"
                   onClick={async () => {
-                    const nameEn = newContractor.name_english.trim();
-                    let nameTe = newContractor.name_telugu.trim();
-                    if (!nameTe && nameEn) nameTe = englishToTelugu(nameEn);
-                    if (!nameEn || newContractor.phone.length < 10) {
+                    const name = resolveBilingualField(
+                      newContractor.name_english,
+                      newContractor.name_telugu
+                    );
+                    const village = resolveBilingualField(
+                      newContractor.village_english || name.english,
+                      newContractor.village_telugu
+                    );
+                    if (!name.english || newContractor.phone.length < 10) {
                       showToast(L("failed"));
                       return;
                     }
-                    const villageEn = newContractor.village_english.trim() || nameEn;
-                    let villageTe = newContractor.village_telugu.trim();
-                    if (!villageTe && villageEn) villageTe = englishToTelugu(villageEn);
 
                     const ok = await postAction({
                       action: "add_contractor",
                       ...newContractor,
-                      name_english: nameEn,
-                      name_telugu: nameTe,
-                      village_english: villageEn,
-                      village_telugu: villageTe,
+                      name_english: name.english,
+                      name_telugu: name.telugu,
+                      village_english: village.english,
+                      village_telugu: village.telugu,
                     });
                     if (ok) {
                       setNewContractor({
@@ -878,6 +1009,25 @@ export function AdminDashboard() {
               </div>
             </Panel>
 
+            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+              <label className="block text-sm font-bold text-gray-800">
+                {L("searchRegistry")}
+                <input
+                  type="search"
+                  value={registrySearch}
+                  onChange={(e) => setRegistrySearch(e.target.value)}
+                  placeholder={L("searchContractor")}
+                  className="mt-2 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4 text-base"
+                  autoComplete="off"
+                />
+              </label>
+              {registrySearch.trim() && (
+                <p className="mt-2 text-center text-xs font-semibold text-gray-500">
+                  {registryList.length} {L("searchFound")}
+                </p>
+              )}
+            </div>
+
             <Panel
               title={`${L("contractorsByCategory")}${
                 categoryFilter !== "all"
@@ -889,7 +1039,9 @@ export function AdminDashboard() {
               } (${registryList.length})`}
             >
               {registryList.length === 0 ? (
-                <p className="py-8 text-center text-gray-500">{L("noContractors")}</p>
+                <p className="py-8 text-center text-gray-500">
+                  {registrySearch.trim() ? L("noSearchResults") : L("noContractors")}
+                </p>
               ) : (
                 registryList.map((c) => (
                   <div
@@ -1148,38 +1300,185 @@ export function AdminDashboard() {
           </Panel>
         )}
 
-        {tab === "rewards" && (
+        {tab === "targets" && (
           <>
-            <Panel title={L("masonGiftsPlan")}>
-              <p className="mb-4 rounded-xl bg-orange-50 p-3 text-sm font-medium text-orange-900">
-                {L("masonGiftsPlanHint")}
+            <Panel title={L("categoryTargets")}>
+              <p className="mb-4 rounded-xl bg-blue-50 p-3 text-sm font-medium text-blue-900">
+                {ta(
+                  lang,
+                  "Set monthly target, period dates, and gifts per category. Contractors see the same gifts in the app.",
+                  "ప్రతి వర్గానికి లక్ష్యం, తేదీలు, బహుమతులు — app లో అలాగే కనిపిస్తాయి."
+                )}
               </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {MASON_BAG_GIFTS.map((g) => (
+              {categories.map((cat) => {
+                const giftRows = rewardsDraft[cat.id] ?? [];
+                return (
                   <div
-                    key={g.id}
-                    className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3"
+                    key={cat.id}
+                    className="mb-6 rounded-2xl border border-gray-100 bg-gray-50 p-4"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={g.imageSrc}
-                      alt={g.nameEn}
-                      className="h-14 w-14 shrink-0 object-contain"
-                    />
-                    <div>
-                      <p className="font-black text-[#1a2744]">
-                        {lang === "te" ? g.nameTe : g.nameEn}
-                      </p>
-                      <p className="text-sm font-bold text-[#e85d00]">
-                        {formatBagsThreshold(lang, g.minBags)}
-                      </p>
+                    <div className="mb-4 flex items-center gap-2">
+                      <span className="text-2xl">{cat.icon}</span>
+                      <span className="text-lg font-black">{categoryName(cat)}</span>
+                      {isBagsCategory(cat) && (
+                        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-[#e85d00]">
+                          {L("bags")}
+                        </span>
+                      )}
                     </div>
+
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-3">
+                        <p className="text-sm font-black uppercase tracking-wide text-gray-500">
+                          {ta(lang, "Target", "లక్ష్యం")}
+                        </p>
+                        <label className="block text-sm font-bold">
+                          {isBagsCategory(cat) ? L("targetBags") : L("targetAmount")}
+                          <input
+                            type="number"
+                            min={1}
+                            defaultValue={cat.monthly_target_amount}
+                            id={`target-${cat.id}`}
+                            className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
+                          />
+                        </label>
+                        <label className="block text-sm font-bold">
+                          {L("periodStart")}
+                          <input
+                            type="date"
+                            defaultValue={cat.period_start_date?.slice(0, 10) ?? ""}
+                            id={`period-start-${cat.id}`}
+                            className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
+                          />
+                        </label>
+                        <label className="block text-sm font-bold">
+                          {L("periodEnd")}
+                          <input
+                            type="date"
+                            defaultValue={cat.period_end_date?.slice(0, 10) ?? ""}
+                            id={`period-end-${cat.id}`}
+                            className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
+                          />
+                        </label>
+                      </div>
+
+                      <div className="space-y-2 rounded-xl border border-orange-200 bg-white p-3">
+                        <p className="text-sm font-black uppercase tracking-wide text-[#e85d00]">
+                          {L("rewardsColumn")}
+                        </p>
+                        {giftRows.length === 0 ? (
+                          <p className="py-4 text-center text-sm text-gray-500">
+                            {ta(lang, "No gifts yet — add rows below", "ఇంకా బహుమతులు లేవు")}
+                          </p>
+                        ) : (
+                          <div className="max-h-80 space-y-2 overflow-y-auto">
+                            {giftRows.map((g, idx) => (
+                              <div
+                                key={`${g.id}-${idx}`}
+                                className="grid gap-2 rounded-lg border border-gray-100 bg-gray-50 p-2 sm:grid-cols-[72px_1fr_auto]"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={g.image_src}
+                                  alt=""
+                                  className="h-14 w-14 object-contain"
+                                />
+                                <div className="grid gap-1 sm:grid-cols-2">
+                                  <label className="text-xs font-bold">
+                                    {L("minToUnlock")}
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      value={g.min_value}
+                                      onChange={(e) =>
+                                        updateGiftDraft(
+                                          cat.id,
+                                          idx,
+                                          "min_value",
+                                          Number(e.target.value)
+                                        )
+                                      }
+                                      className="mt-0.5 w-full rounded-lg border px-2 py-1.5 text-sm"
+                                    />
+                                  </label>
+                                  <label className="text-xs font-bold">
+                                    {L("giftImage")}
+                                    <select
+                                      value={g.image_src}
+                                      onChange={(e) =>
+                                        updateGiftDraft(
+                                          cat.id,
+                                          idx,
+                                          "image_src",
+                                          e.target.value
+                                        )
+                                      }
+                                      className="mt-0.5 w-full rounded-lg border px-2 py-1.5 text-sm"
+                                    >
+                                      {GIFT_IMAGE_PRESETS.map((p) => (
+                                        <option key={p.value} value={p.value}>
+                                          {lang === "te" ? p.labelTe : p.labelEn}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                  <BilingualField
+                                    compact
+                                    englishLabel={L("giftNameEn")}
+                                    teluguLabel={L("giftNameTe")}
+                                    englishValue={g.name_english}
+                                    teluguValue={g.name_telugu}
+                                    englishPlaceholder="TV Gift"
+                                    onEnglishChange={(v) =>
+                                      updateGiftNames(cat.id, idx, v, g.name_telugu)
+                                    }
+                                    onTeluguChange={(te) =>
+                                      updateGiftNames(cat.id, idx, g.name_english, te)
+                                    }
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => void removeGiftRow(cat, idx)}
+                                  className="min-h-[40px] self-start rounded-lg bg-red-100 px-2 text-sm font-bold text-red-700"
+                                  aria-label={L("delete")}
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => addGiftRow(cat)}
+                          className="w-full rounded-xl border-2 border-dashed border-orange-300 py-2 text-sm font-bold text-[#e85d00]"
+                        >
+                          + {L("addGiftRow")}
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => void saveCategoryPlan(cat)}
+                      className="btn-big mt-4 w-full rounded-2xl bg-[#e85d00] text-white"
+                    >
+                      💾 {L("savePlan")}
+                    </button>
+                    <p className="mt-2 text-center text-xs font-medium text-gray-500">
+                      {ta(
+                        lang,
+                        "Saves target, dates, and all gifts to database — contractors see this in the app.",
+                        "లక్ష్యం, తేదీలు, బహుమతులు డేటాబేస్‌లో సేవ్ — app లో కనిపిస్తాయి."
+                      )}
+                    </p>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </Panel>
 
-            <Panel title={L("markReward")}>
+            <Panel title={L("deliverRewards")}>
               <div className="grid gap-3 sm:grid-cols-2">
                 <select id="rw-contractor" className="min-h-[48px] rounded-xl border-2 px-4">
                   {contractors.filter((c) => c.is_active).map((c) => (
@@ -1207,81 +1506,25 @@ export function AdminDashboard() {
                     ).value;
                     postAction({ action: "deliver_reward", contractor_id, reward_level_id });
                   }}
-                  className="btn-big sm:col-span-2 rounded-2xl bg-[#e85d00] text-white"
+                  className="btn-big sm:col-span-2 rounded-2xl bg-[#1a2744] text-white"
                 >
                   {L("markDelivered")}
                 </button>
               </div>
             </Panel>
             <Panel title={L("rewardHistory")}>
-              {rewards.map((r) => (
-                <div key={String(r.id)} className="border-b border-gray-100 py-3 text-sm">
-                  {(r.contractors as { name_telugu: string })?.name_telugu} —{" "}
-                  {(r.reward_levels as { level_name_telugu: string })?.level_name_telugu} ✅
-                </div>
-              ))}
+              {rewards.length === 0 ? (
+                <p className="py-6 text-center text-gray-500">{L("noContractors")}</p>
+              ) : (
+                rewards.map((r) => (
+                  <div key={String(r.id)} className="border-b border-gray-100 py-3 text-sm">
+                    {(r.contractors as { name_telugu: string })?.name_telugu} —{" "}
+                    {(r.reward_levels as { level_name_telugu: string })?.level_name_telugu} ✅
+                  </div>
+                ))
+              )}
             </Panel>
           </>
-        )}
-
-        {tab === "targets" && (
-          <Panel title={L("categoryTargets")}>
-            {categories.map((cat) => (
-              <div
-                key={cat.id}
-                className="mb-6 rounded-2xl border border-gray-100 bg-gray-50 p-4"
-              >
-                <div className="mb-3 flex items-center gap-2">
-                  <span className="text-2xl">{cat.icon}</span>
-                  <span className="text-lg font-black">
-                    {lang === "te" ? cat.name_telugu : cat.name_english}
-                  </span>
-                  {isBagsCategory(cat) && (
-                    <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-[#e85d00]">
-                      {L("bags")}
-                    </span>
-                  )}
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="block text-sm font-bold sm:col-span-2">
-                    {isBagsCategory(cat) ? L("targetBags") : L("targetAmount")}
-                    <input
-                      type="number"
-                      min={1}
-                      defaultValue={cat.monthly_target_amount}
-                      id={`target-${cat.id}`}
-                      className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
-                    />
-                  </label>
-                  <label className="block text-sm font-bold">
-                    {L("periodStart")}
-                    <input
-                      type="date"
-                      defaultValue={cat.period_start_date?.slice(0, 10) ?? ""}
-                      id={`period-start-${cat.id}`}
-                      className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
-                    />
-                  </label>
-                  <label className="block text-sm font-bold">
-                    {L("periodEnd")}
-                    <input
-                      type="date"
-                      defaultValue={cat.period_end_date?.slice(0, 10) ?? ""}
-                      id={`period-end-${cat.id}`}
-                      className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
-                    />
-                  </label>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void saveCategoryTarget(cat)}
-                  className="btn-big mt-3 w-full rounded-2xl bg-[#e85d00] text-white"
-                >
-                  {L("save")}
-                </button>
-              </div>
-            ))}
-          </Panel>
         )}
 
       </main>
