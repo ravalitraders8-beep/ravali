@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { PhoneLogin } from "@/components/PhoneLogin";
 import { SetupRequired } from "@/components/SetupRequired";
 import { IntroSplash } from "@/components/IntroSplash";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { UserPortalShell } from "@/components/UserPortalShell";
 import { fetchContractorDashboard, fetchSetupStatus } from "@/lib/api-client";
 import { clearContractorSession, getContractorSession } from "@/lib/session";
 import { isPwaInstalled } from "@/lib/pwa-install-store";
+import { useIntroSplash } from "@/hooks/useIntroSplash";
 
 const INTRO_MIN_MS = 2400;
 
@@ -16,12 +18,7 @@ export default function HomePage() {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [ready, setReady] = useState(false);
-  const [introDone, setIntroDone] = useState(false);
-
-  useEffect(() => {
-    const introTimer = window.setTimeout(() => setIntroDone(true), INTRO_MIN_MS);
-    return () => window.clearTimeout(introTimer);
-  }, []);
+  const introDone = useIntroSplash(INTRO_MIN_MS);
 
   useEffect(() => {
     const session = getContractorSession();
@@ -52,8 +49,16 @@ export default function HomePage() {
     finishSetupCheck();
   }, [router]);
 
-  if (checking || !introDone) {
+  if (!introDone) {
     return <IntroSplash />;
+  }
+
+  if (checking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#fff8f0]">
+        <LoadingSpinner />
+      </div>
+    );
   }
 
   if (!ready) return <SetupRequired />;

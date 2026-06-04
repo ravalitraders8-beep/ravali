@@ -206,29 +206,43 @@ export function isMonthlyTargetReached(
   return target > 0 && monthlyAmount >= target;
 }
 
-/** Only the gift for this rank unlocks — not every lower tier. */
+/** Unlocks when monthly bags/₹ reach this row's target (lower tiers stay open once passed). */
 export function isGiftUnlockedForContractor(
   gift: CategoryGift,
   category: Category,
-  rank: number | null,
+  _rank: number | null,
   monthlyAmount: number
 ): boolean {
-  if (rank === null) return false;
-  const gifts = getCategoryGifts(category);
-  if (resolveGiftPosition(gift, gifts) !== rank) return false;
   return isMonthlyTargetReached(monthlyAmount, gift, category);
 }
 
+export function bagsRemainingForGift(
+  monthlyAmount: number,
+  gift: CategoryGift,
+  category: Category
+): number {
+  const target = getGiftTargetAmount(gift, category);
+  return Math.max(0, Math.round(target - monthlyAmount));
+}
+
+/** Member's rank gift, if they have reached that row's target. */
 export function getUnlockedGiftForContractor(
   category: Category,
   rank: number | null,
   monthlyAmount: number
 ): CategoryGift | null {
-  const gifts = getCategoryGifts(category);
-  return (
-    gifts.find((g) => isGiftUnlockedForContractor(g, category, rank, monthlyAmount)) ??
-    null
-  );
+  const gift = getGiftForRank(category, rank);
+  if (!gift) return null;
+  return isMonthlyTargetReached(monthlyAmount, gift, category) ? gift : null;
+}
+
+/** All gifts unlocked by amount this month (sorted low → high target). */
+export function getUnlockedGiftsByAmount(
+  category: Category,
+  monthlyAmount: number
+): CategoryGift[] {
+  const gifts = sortGiftsByPosition(getCategoryGifts(category));
+  return gifts.filter((g) => isMonthlyTargetReached(monthlyAmount, g, category));
 }
 
 /** Gift tied to the member's current rank (shown as next goal before target is met). */

@@ -15,3 +15,5 @@ export const ADMIN_PIN_SESSION_KEY = "ravali-admin-pin";
 export const ADMIN_SESSION_EVENT = "ravali-admin-session";
 export const INSTALL_PROMPT_KEY = "ravali-show-install-prompt";
 export const INSTALL_PROMPT_EVENT = "ravali-install-prompt-change";
+/** Once per browser tab session — skip intro splash on refresh */
+export const INTRO_SPLASH_SEEN_KEY = "ravali-intro-splash-seen";

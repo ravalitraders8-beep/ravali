@@ -34,8 +34,8 @@ export const adminLabels = {
   giftDesign: { en: "Gift design", te: "బహుమతి డిజైన్" },
   giftPreview: { en: "App preview", te: "App లో ఇలా కనిపిస్తుంది" },
   giftPlanHint: {
-    en: "Each card can have a different target. Members unlock only their rank's gift after reaching that card's target.",
-    te: "ప్రతి కార్డ్ లో వేరే లక్ష్యం పెట్టవచ్చు. ఆ లక్ష్యం చేరితే మీ స్థానం బహుమతి మాత్రమే.",
+    en: "Each card can have a different target. Members unlock every gift whose target they have reached (lower tiers stay open).",
+    te: "ప్రతి కార్డ్ లో వేరే లక్ష్యం. లక్ష్యం చేరిన ప్రతి బహుమతి తెరుచుకుంటుంది (తక్కువవి లాక్ కావు).",
   },
   duplicateRank: {
     en: "This rank is already used — choose another",

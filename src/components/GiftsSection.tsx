@@ -2,14 +2,15 @@
 
 import Image from "next/image";
 import { getContractorCategoryRank } from "@/lib/category-about";
+import { formatTargetValueBilingual, isBagsCategory } from "@/lib/category-period";
 import {
+  bagsRemainingForGift,
   formatGiftThreshold,
   getAchievementPercentForGift,
   getCategoryGifts,
   getGiftForRank,
   getUnlockedGiftForContractor,
   isGiftUnlockedForContractor,
-  isMonthlyTargetReached,
   resolveGiftPosition,
   sortGiftsByPosition,
   type CategoryGift,
@@ -41,21 +42,26 @@ function CategoryGiftCard({
   const { lang } = useLang();
   const position = resolveGiftPosition(gift, gifts);
   const unlocked = isGiftUnlockedForContractor(gift, category, rank, monthlyAmount);
-  const isYourSlot = rank !== null && position === rank;
-  const targetReached = isMonthlyTargetReached(monthlyAmount, gift, category);
+  const isYourRankGift = rank !== null && position === rank;
   const pct = Math.min(100, Math.round(getAchievementPercentForGift(monthlyAmount, gift, category)));
+  const remaining = bagsRemainingForGift(monthlyAmount, gift, category);
+  const bags = isBagsCategory(category);
 
   let lockHint = "";
   if (!unlocked) {
-    if (rank === null) {
+    if (monthlyAmount <= 0) {
       lockHint = t(lang, labels.giftNeedActivity.en, labels.giftNeedActivity.te);
-    } else if (!isYourSlot) {
-      lockHint = t(lang, labels.giftWrongRank.en, labels.giftWrongRank.te).replace(
+    } else {
+      const needLabel = bags
+        ? t(lang, labels.bagsToGo.en, labels.bagsToGo.te).replace("{n}", String(remaining))
+        : t(lang, labels.amountToGo.en, labels.amountToGo.te).replace(
+            "{n}",
+            formatTargetValueBilingual(lang, category, remaining)
+          );
+      lockHint = t(lang, labels.giftNeedTarget.en, labels.giftNeedTarget.te).replace(
         "{n}",
-        String(position)
+        needLabel
       );
-    } else if (!targetReached) {
-      lockHint = t(lang, labels.giftNeedTarget.en, labels.giftNeedTarget.te);
     }
   }
 
@@ -64,7 +70,9 @@ function CategoryGiftCard({
       className={`flex gap-4 rounded-2xl p-4 ${
         unlocked
           ? "border-2 border-[#e85d00] bg-orange-50"
-          : "border border-gray-200 bg-gray-50"
+          : isYourRankGift
+            ? "border-2 border-[#1a2744]/20 bg-white"
+            : "border border-gray-200 bg-gray-50"
       } ${unlocked ? "ring-2 ring-[#e85d00] ring-offset-2" : ""}`}
     >
       <div
@@ -92,6 +100,11 @@ function CategoryGiftCard({
       <div className="min-w-0 flex-1">
         <p className="text-lg font-black text-[#1a2744]">
           {pickBilingual(lang, gift.name_english, gift.name_telugu)}
+          {isYourRankGift && (
+            <span className="ml-2 text-xs font-bold text-[#e85d00]">
+              {t(lang, "Your rank", "మీ స్థానం")}
+            </span>
+          )}
         </p>
         <p className="text-sm font-bold text-[#e85d00]">
           {formatGiftThreshold(lang, category, gift)}
@@ -106,7 +119,7 @@ function CategoryGiftCard({
           </p>
         )}
 
-        {!unlocked && isYourSlot && !targetReached && (
+        {!unlocked && monthlyAmount > 0 && (
           <div className="mt-2">
             <div className="h-2 overflow-hidden rounded-full bg-gray-200">
               <div
@@ -118,7 +131,7 @@ function CategoryGiftCard({
           </div>
         )}
 
-        {!unlocked && (!isYourSlot || targetReached) && lockHint && (
+        {!unlocked && monthlyAmount <= 0 && lockHint && (
           <p className="mt-2 text-xs font-bold text-gray-600">{lockHint}</p>
         )}
 
@@ -132,7 +145,7 @@ function CategoryGiftCard({
   );
 }
 
-/** One gift per leaderboard position — unlocks when that row's target is met at that rank */
+/** Gifts unlock by amount — passing a higher target opens lower tiers too */
 export function GiftsSection({
   category,
   monthlyAmount,
@@ -143,7 +156,7 @@ export function GiftsSection({
   const gifts = sortGiftsByPosition(getCategoryGifts(category));
   const rank = getContractorCategoryRank(contractorId, category, leaderboard);
   const yourGift = getGiftForRank(category, rank);
-  const unlockedGift = getUnlockedGiftForContractor(category, rank, monthlyAmount);
+  const rankGiftUnlocked = getUnlockedGiftForContractor(category, rank, monthlyAmount);
 
   if (gifts.length === 0) {
     return null;
@@ -165,7 +178,7 @@ export function GiftsSection({
         </div>
       </div>
 
-      {yourGift && rank !== null && !unlockedGift && (
+      {yourGift && rank !== null && !rankGiftUnlocked && (
         <p className="mb-4 rounded-xl bg-[#1a2744]/5 px-4 py-3 text-center text-sm font-bold text-[#1a2744]">
           {t(lang, labels.nextRankGift.en, labels.nextRankGift.te)
             .replace("{rank}", String(rank))
@@ -173,10 +186,24 @@ export function GiftsSection({
               "{name}",
               pickBilingual(lang, yourGift.name_english, yourGift.name_telugu)
             )}
+          {bagsRemainingForGift(monthlyAmount, yourGift, category) > 0 && (
+            <span className="mt-1 block text-[#e85d00]">
+              {isBagsCategory(category)
+                ? t(lang, labels.bagsToGo.en, labels.bagsToGo.te).replace(
+                    "{n}",
+                    String(bagsRemainingForGift(monthlyAmount, yourGift, category))
+                  )
+                : formatTargetValueBilingual(
+                    lang,
+                    category,
+                    bagsRemainingForGift(monthlyAmount, yourGift, category)
+                  )}
+            </span>
+          )}
         </p>
       )}
 
-      {unlockedGift && (
+      {rankGiftUnlocked && (
         <p className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-center text-sm font-bold text-green-800">
           {t(lang, labels.giftUnlockedRank.en, labels.giftUnlockedRank.te).replace(
             "{rank}",

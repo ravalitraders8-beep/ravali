@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ContractorDashboard } from "@/components/ContractorDashboard";
 import { IntroSplash } from "@/components/IntroSplash";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { SetupRequired } from "@/components/SetupRequired";
 import { UserPortalShell } from "@/components/UserPortalShell";
 import { useCachedApi } from "@/hooks/useCachedApi";
@@ -17,6 +18,7 @@ import {
   setContractorSession,
 } from "@/lib/session";
 import { useLang } from "@/context/LangContext";
+import { useIntroSplash } from "@/hooks/useIntroSplash";
 
 const INTRO_MIN_MS = 2200;
 
@@ -25,12 +27,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { lang } = useLang();
   const token = decodeURIComponent(params.token as string).trim().toUpperCase();
-  const [introDone, setIntroDone] = useState(false);
-
-  useEffect(() => {
-    const introTimer = window.setTimeout(() => setIntroDone(true), INTRO_MIN_MS);
-    return () => window.clearTimeout(introTimer);
-  }, []);
+  const introDone = useIntroSplash(INTRO_MIN_MS);
 
   const fetcher = useCallback(
     (force?: boolean) => fetchContractorDashboard(token, force),
@@ -70,8 +67,16 @@ export default function DashboardPage() {
     }
   }, [errorKind, lang]);
 
-  if (loading || !introDone) {
+  if (!introDone) {
     return <IntroSplash />;
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#fff8f0]">
+        <LoadingSpinner />
+      </div>
+    );
   }
 
   if (errorKind === "setup") return <SetupRequired />;

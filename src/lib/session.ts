@@ -7,6 +7,7 @@ import {
   ADMIN_SESSION_EVENT,
   INSTALL_PROMPT_KEY,
   INSTALL_PROMPT_EVENT,
+  INTRO_SPLASH_SEEN_KEY,
 } from "./constants";
 import type { ContractorSession } from "./types";
 
@@ -96,4 +97,21 @@ export async function adminFetch(
       ...options.headers,
     },
   });
+}
+
+export function hasSeenIntroSplash(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    return sessionStorage.getItem(INTRO_SPLASH_SEEN_KEY) === "1";
+  } catch {
+    return true;
+  }
+}
+
+export function markIntroSplashSeen(): void {
+  try {
+    sessionStorage.setItem(INTRO_SPLASH_SEEN_KEY, "1");
+  } catch {
+    /* private mode */
+  }
 }
