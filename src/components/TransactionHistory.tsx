@@ -1,18 +1,21 @@
 "use client";
 
+import { formatQuantityAdded, isBagsCategory } from "@/lib/category-period";
 import { formatINR } from "@/lib/currency";
 import { labels, t } from "@/lib/i18n";
 import { useLang } from "@/context/LangContext";
-import type { Transaction } from "@/lib/types";
+import type { Category, Transaction } from "@/lib/types";
 
 const REASON_ICONS = ["🎉", "📦", "⭐", "🏆", "💪", "✅"];
 
 interface TransactionHistoryProps {
   transactions: Transaction[];
+  category: Category;
 }
 
-export function TransactionHistory({ transactions }: TransactionHistoryProps) {
+export function TransactionHistory({ transactions, category }: TransactionHistoryProps) {
   const { lang } = useLang();
+  const bags = isBagsCategory(category);
 
   return (
     <div className="card-visual bg-white p-5">
@@ -47,7 +50,9 @@ export function TransactionHistory({ transactions }: TransactionHistoryProps) {
                 </p>
               </div>
               <span className="text-2xl font-black text-green-700">
-                +{formatINR(Number(tx.amount))}
+                {bags
+                  ? formatQuantityAdded(lang, category, Number(tx.amount))
+                  : `+${formatINR(Number(tx.amount))}`}
               </span>
             </div>
           ))}

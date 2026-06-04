@@ -121,9 +121,26 @@ export async function POST(request: NextRequest) {
     }
 
     if (body.action === "update_contractor") {
-      const { id, ...updates } = body;
+      const { id } = body;
+      if (!id) {
+        return NextResponse.json({ message: "Contractor id required" }, { status: 400 });
+      }
+
+      const updates: Record<string, boolean> = {};
+      if (typeof body.is_active === "boolean") updates.is_active = body.is_active;
+
+      if (Object.keys(updates).length === 0) {
+        return NextResponse.json({ message: "Nothing to update" }, { status: 400 });
+      }
+
       const { error } = await supabase.from("contractors").update(updates).eq("id", id);
       if (error) return NextResponse.json({ message: error.message }, { status: 400 });
+
+      await supabase.from("admin_logs").insert({
+        action: updates.is_active === false ? "deactivate_contractor" : "update_contractor",
+        target_contractor_id: id,
+        details: updates.is_active === false ? "Deactivated" : "Updated contractor",
+      });
       bustServerCache();
       return jsonNoStore({ ok: true });
     }
@@ -131,6 +148,45 @@ export async function POST(request: NextRequest) {
     if (body.action === "add_transaction") {
       const monthYear = getCurrentMonthYear();
       const { contractor_id, amount, reason_english, reason_telugu, transaction_date } = body;
+      const dateStr = transaction_date ?? new Date().toISOString().slice(0, 10);
+
+      const { data: contractorRow } = await supabase
+        .from("contractors")
+        .select("category_id")
+        .eq("id", contractor_id)
+        .single();
+
+      if (contractorRow?.category_id) {
+        const { data: cat } = await supabase
+          .from("categories")
+          .select("period_start_date, period_end_date, name_english")
+          .eq("id", contractorRow.category_id)
+          .single();
+
+        if (cat?.period_end_date && dateStr > cat.period_end_date) {
+          return NextResponse.json(
+            {
+              message:
+                "Period ended. Update target dates in Targets tab. | లక్ష్య కాలం ముగిసింది.",
+              code: "period_ended",
+            },
+            { status: 400 }
+          );
+        }
+        if (cat?.period_start_date && dateStr < cat.period_start_date) {
+          return NextResponse.json(
+            {
+              message: "Period not started yet. | లక్ష్య కాలం ఇంకా మొదలు కాలేదు.",
+              code: "period_not_started",
+            },
+            { status: 400 }
+          );
+        }
+      }
+
+      const [y, m] = dateStr.split("-");
+      const txMonthYear = `${y}-${m}`;
+
       const { data, error } = await supabase
         .from("transactions")
         .insert({
@@ -138,8 +194,8 @@ export async function POST(request: NextRequest) {
           amount,
           reason_english,
           reason_telugu,
-          transaction_date: transaction_date ?? new Date().toISOString().slice(0, 10),
-          month_year: monthYear,
+          transaction_date: dateStr,
+          month_year: txMonthYear,
         })
         .select()
         .single();
@@ -159,6 +215,31 @@ export async function POST(request: NextRequest) {
       if (!id) return NextResponse.json({ message: "Transaction id required" }, { status: 400 });
 
       const dateStr = transaction_date ?? new Date().toISOString().slice(0, 10);
+
+      const { data: contractorRow } = await supabase
+        .from("contractors")
+        .select("category_id")
+        .eq("id", contractor_id)
+        .single();
+
+      if (contractorRow?.category_id) {
+        const { data: cat } = await supabase
+          .from("categories")
+          .select("period_start_date, period_end_date")
+          .eq("id", contractorRow.category_id)
+          .single();
+
+        if (cat?.period_end_date && dateStr > cat.period_end_date) {
+          return NextResponse.json(
+            {
+              message: "Period ended. | లక్ష్య కాలం ముగిసింది.",
+              code: "period_ended",
+            },
+            { status: 400 }
+          );
+        }
+      }
+
       const [y, m] = dateStr.split("-");
       const month_year = `${y}-${m}`;
 
@@ -212,10 +293,21 @@ export async function POST(request: NextRequest) {
     }
 
     if (body.action === "update_target") {
-      const { category_id, monthly_target_amount } = body;
+      const { category_id, monthly_target_amount, period_start_date, period_end_date, target_unit } =
+        body;
+      const updates: Record<string, string | number> = {};
+      if (monthly_target_amount != null) updates.monthly_target_amount = monthly_target_amount;
+      if (period_start_date) updates.period_start_date = period_start_date;
+      if (period_end_date) updates.period_end_date = period_end_date;
+      if (target_unit === "amount" || target_unit === "bags") updates.target_unit = target_unit;
+
+      if (Object.keys(updates).length === 0) {
+        return NextResponse.json({ message: "Nothing to update" }, { status: 400 });
+      }
+
       const { error } = await supabase
         .from("categories")
-        .update({ monthly_target_amount })
+        .update(updates)
         .eq("id", category_id);
       if (error) return NextResponse.json({ message: error.message }, { status: 400 });
       bustServerCache();

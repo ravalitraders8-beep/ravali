@@ -5,6 +5,9 @@ export interface Category {
   color_hex: string;
   icon: string;
   monthly_target_amount: number;
+  target_unit?: "amount" | "bags";
+  period_start_date?: string | null;
+  period_end_date?: string | null;
 }
 
 export interface Contractor {

@@ -20,6 +20,11 @@ import { CACHE_TAGS } from "@/lib/cache-tags";
 import { ShopLogo } from "./ShopLogo";
 import { LOGO_PATH, SHOP_NAME } from "@/lib/constants";
 import { formatINR } from "@/lib/currency";
+import {
+  formatQuantityAdded,
+  isBagsCategory,
+  periodStatus,
+} from "@/lib/category-period";
 import { useLang } from "@/context/LangContext";
 import { englishToTelugu } from "@/lib/transliterate";
 import { downloadQR, generateQRCodeOnly } from "@/lib/qr-utils";
@@ -151,6 +156,16 @@ export function AdminDashboard() {
     return activeContractors.filter((c) => c.category_id === txCategoryId);
   }, [activeContractors, txCategoryId]);
 
+  const txCategory = useMemo(
+    () => categories.find((c) => c.id === txCategoryId),
+    [categories, txCategoryId]
+  );
+
+  const txPeriodState = useMemo(() => {
+    if (!txCategory || !txForm.transaction_date) return "active" as const;
+    return periodStatus(txCategory, txForm.transaction_date);
+  }, [txCategory, txForm.transaction_date]);
+
   const resetTxForm = useCallback(() => {
     setEditingTxId(null);
     const defaultCat =
@@ -210,6 +225,14 @@ export function AdminDashboard() {
       showToast(L("noContractorsInCategory"));
       return;
     }
+    if (!editingTxId && txCategory && txPeriodState === "ended") {
+      showToast(L("periodOver"));
+      return;
+    }
+    if (!editingTxId && txCategory && txPeriodState === "not_started") {
+      showToast(L("periodNotStarted"));
+      return;
+    }
     const r = TRANSACTION_REASONS[txForm.reasonIdx];
     const payload = {
       contractor_id: txForm.contractor_id,
@@ -225,6 +248,43 @@ export function AdminDashboard() {
       const ok = await postAction({ action: "add_transaction", ...payload });
       if (ok) resetTxForm();
     }
+  };
+
+  const deactivateContractor = async (id: string) => {
+    if (!window.confirm(ta(lang, "Deactivate this contractor?", "ఈ కాంట్రాక్టర్ నిలిపివేయాలా?")))
+      return;
+    const { ok, data } = await adminPostAction({
+      action: "update_contractor",
+      id,
+      is_active: false,
+    });
+    if (!ok) {
+      showToast(String(data.message ?? data.error ?? L("failed")));
+      return;
+    }
+    showToast(L("deactivated"));
+    await loadAll(true);
+  };
+
+  const saveCategoryTarget = async (cat: Category) => {
+    const targetVal = Number(
+      (document.getElementById(`target-${cat.id}`) as HTMLInputElement).value
+    );
+    const period_start_date = (
+      document.getElementById(`period-start-${cat.id}`) as HTMLInputElement
+    ).value;
+    const period_end_date = (
+      document.getElementById(`period-end-${cat.id}`) as HTMLInputElement
+    ).value;
+    const ok = await postAction({
+      action: "update_target",
+      category_id: cat.id,
+      monthly_target_amount: targetVal,
+      period_start_date,
+      period_end_date,
+      target_unit: isBagsCategory(cat) ? "bags" : "amount",
+    });
+    if (ok) await loadAll(true);
   };
 
   const loadAll = useCallback(async (force = false) => {
@@ -691,13 +751,16 @@ export function AdminDashboard() {
                       {c.is_active && (
                         <button
                           type="button"
-                          onClick={() =>
-                            postAction({ action: "update_contractor", id: c.id, is_active: false })
-                          }
+                          onClick={() => void deactivateContractor(c.id)}
                           className="min-h-[44px] rounded-xl bg-red-100 px-4 text-sm font-bold text-red-700"
                         >
                           {L("deactivate")}
                         </button>
+                      )}
+                      {!c.is_active && (
+                        <span className="min-h-[44px] rounded-xl bg-gray-200 px-4 py-2 text-sm font-bold text-gray-600">
+                          {L("inactive")}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -800,6 +863,22 @@ export function AdminDashboard() {
         {tab === "amounts" && (
           <>
             <Panel title={editingTxId ? L("updateTransaction") : L("addAmount")}>
+              {txCategory && txPeriodState === "ended" && !editingTxId && (
+                <p className="mb-4 rounded-xl border-2 border-red-300 bg-red-50 p-4 text-center text-sm font-bold text-red-700">
+                  {L("periodOver")}
+                </p>
+              )}
+              {txCategory && txPeriodState === "not_started" && !editingTxId && (
+                <p className="mb-4 rounded-xl border-2 border-amber-300 bg-amber-50 p-4 text-center text-sm font-bold text-amber-900">
+                  {L("periodNotStarted")}
+                </p>
+              )}
+              {txCategory?.period_start_date && txCategory?.period_end_date && (
+                <p className="mb-4 text-center text-xs font-semibold text-gray-500">
+                  {L("periodStart")}: {txCategory.period_start_date} — {L("periodEnd")}:{" "}
+                  {txCategory.period_end_date}
+                </p>
+              )}
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block text-sm font-bold sm:col-span-2">
                   {L("category")}
@@ -835,7 +914,7 @@ export function AdminDashboard() {
                   </select>
                 </label>
                 <label className="block text-sm font-bold">
-                  {L("amount")}
+                  {txCategory && isBagsCategory(txCategory) ? L("bags") : L("amount")}
                   <input
                     type="number"
                     min={1}
@@ -874,7 +953,10 @@ export function AdminDashboard() {
                 <button
                   type="button"
                   onClick={() => void saveTransaction()}
-                  disabled={!txForm.contractor_id}
+                  disabled={
+                    !txForm.contractor_id ||
+                    (!editingTxId && (txPeriodState === "ended" || txPeriodState === "not_started"))
+                  }
                   className="btn-big sm:col-span-2 rounded-2xl bg-[#e85d00] text-white disabled:opacity-50"
                 >
                   {editingTxId ? L("updateTransaction") : L("saveTransaction")}
@@ -898,6 +980,13 @@ export function AdminDashboard() {
               ) : (
               transactions.slice(0, 20).map((tx) => {
                 const c = contractors.find((x) => x.id === tx.contractor_id);
+                const cat = c
+                  ? categories.find((catRow) => catRow.id === c.category_id)
+                  : undefined;
+                const amountLabel =
+                  cat && isBagsCategory(cat)
+                    ? formatQuantityAdded(lang, cat, Number(tx.amount))
+                    : `+${formatINR(Number(tx.amount))}`;
                 return (
                   <div
                     key={tx.id}
@@ -911,9 +1000,7 @@ export function AdminDashboard() {
                       <p className="text-xs text-gray-400">{tx.transaction_date?.slice(0, 10)}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-black text-green-600">
-                        +{formatINR(Number(tx.amount))}
-                      </span>
+                      <span className="font-black text-green-600">{amountLabel}</span>
                       <button
                         type="button"
                         onClick={() => startEditTx(tx)}
@@ -1058,31 +1145,53 @@ export function AdminDashboard() {
             {categories.map((cat) => (
               <div
                 key={cat.id}
-                className="mb-4 flex flex-col gap-2 border-b border-gray-100 pb-4 sm:flex-row sm:items-center"
+                className="mb-6 rounded-2xl border border-gray-100 bg-gray-50 p-4"
               >
-                <span className="text-2xl">{cat.icon}</span>
-                <span className="flex-1 font-bold">
-                  {lang === "te" ? cat.name_telugu : cat.name_english}
-                </span>
-                <input
-                  type="number"
-                  defaultValue={cat.monthly_target_amount}
-                  id={`target-${cat.id}`}
-                  className="min-h-[44px] w-full rounded-xl border-2 px-3 sm:w-36"
-                />
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="text-2xl">{cat.icon}</span>
+                  <span className="text-lg font-black">
+                    {lang === "te" ? cat.name_telugu : cat.name_english}
+                  </span>
+                  {isBagsCategory(cat) && (
+                    <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-[#e85d00]">
+                      {L("bags")}
+                    </span>
+                  )}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block text-sm font-bold sm:col-span-2">
+                    {isBagsCategory(cat) ? L("targetBags") : L("targetAmount")}
+                    <input
+                      type="number"
+                      min={1}
+                      defaultValue={cat.monthly_target_amount}
+                      id={`target-${cat.id}`}
+                      className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
+                    />
+                  </label>
+                  <label className="block text-sm font-bold">
+                    {L("periodStart")}
+                    <input
+                      type="date"
+                      defaultValue={cat.period_start_date?.slice(0, 10) ?? ""}
+                      id={`period-start-${cat.id}`}
+                      className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
+                    />
+                  </label>
+                  <label className="block text-sm font-bold">
+                    {L("periodEnd")}
+                    <input
+                      type="date"
+                      defaultValue={cat.period_end_date?.slice(0, 10) ?? ""}
+                      id={`period-end-${cat.id}`}
+                      className="mt-1 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4"
+                    />
+                  </label>
+                </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    const val = Number(
-                      (document.getElementById(`target-${cat.id}`) as HTMLInputElement).value
-                    );
-                    postAction({
-                      action: "update_target",
-                      category_id: cat.id,
-                      monthly_target_amount: val,
-                    });
-                  }}
-                  className="min-h-[44px] rounded-xl bg-[#e85d00] px-6 font-bold text-white"
+                  onClick={() => void saveCategoryTarget(cat)}
+                  className="btn-big mt-3 w-full rounded-2xl bg-[#e85d00] text-white"
                 >
                   {L("save")}
                 </button>

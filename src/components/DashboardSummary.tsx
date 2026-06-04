@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { getContractorCategoryRank } from "@/lib/category-about";
-import { formatINR, getProgressStatus } from "@/lib/currency";
+import {
+  formatTargetValueBilingual,
+  formatQuantityAdded,
+  isBagsCategory,
+} from "@/lib/category-period";
+import { getProgressStatus } from "@/lib/currency";
 import { labels, progressMessage, t } from "@/lib/i18n";
 import { userMotivation } from "@/lib/motivation";
 import { useLang } from "@/context/LangContext";
@@ -24,7 +29,7 @@ function rankEmoji(rank: number): string {
   return "🏅";
 }
 
-/** One simple card — rank + money + progress (easy for everyone to read) */
+/** One simple card — rank + progress (bags for mason, ₹ for others) */
 export function DashboardSummary({
   contractorId,
   category,
@@ -39,6 +44,7 @@ export function DashboardSummary({
   const notStarted = monthlyAmount <= 0 || rank === null;
   const pct = Math.min(100, achievementPercent);
   const status = getProgressStatus(achievementPercent);
+  const bags = isBagsCategory(category);
 
   useEffect(() => {
     const duration = 900;
@@ -53,7 +59,6 @@ export function DashboardSummary({
 
   return (
     <div className="user-card overflow-hidden bg-white">
-      {/* Rank row */}
       <div
         className="flex items-center gap-4 rounded-2xl p-4"
         style={{ backgroundColor: `${category.color_hex}18` }}
@@ -86,17 +91,18 @@ export function DashboardSummary({
         </div>
       </div>
 
-      {/* Money — biggest number on screen */}
       <div className="mt-6 text-center">
         <p className="text-base font-bold text-gray-500">
-          {t(lang, labels.thisMonthAmount.en, labels.thisMonthAmount.te)} 💰
+          {bags
+            ? t(lang, labels.thisMonthBags.en, labels.thisMonthBags.te)
+            : t(lang, labels.thisMonthAmount.en, labels.thisMonthAmount.te)}{" "}
+          {bags ? "🧱" : "💰"}
         </p>
         <p className="mt-1 text-5xl font-black tracking-tight text-[#e85d00] sm:text-6xl">
-          {formatINR(display)}
+          {formatQuantityAdded(lang, category, display).replace("+", "")}
         </p>
       </div>
 
-      {/* Progress bar */}
       <div className="mt-5">
         <div className="h-5 overflow-hidden rounded-full bg-gray-100">
           <div
@@ -106,7 +112,8 @@ export function DashboardSummary({
         </div>
         <div className="mt-2 flex items-center justify-between text-base font-bold text-gray-700">
           <span>
-            🎯 {t(lang, labels.monthlyTarget.en, labels.monthlyTarget.te)} {formatINR(target)}
+            🎯 {t(lang, labels.monthlyTarget.en, labels.monthlyTarget.te)}{" "}
+            {formatTargetValueBilingual(lang, category, target)}
           </span>
           <span>{Math.round(pct)}%</span>
         </div>

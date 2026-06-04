@@ -88,4 +88,18 @@ export const adminLabels = {
   mobileNavAmounts: { en: "Amount", te: "మొత్తం" },
   mobileNavContractors: { en: "Staff", te: "సిబ్బంది" },
   mobileNavQr: { en: "QR", te: "QR" },
+  targetBags: { en: "Target (bags)", te: "లక్ష్యం (బ్యాగులు)" },
+  targetAmount: { en: "Target (₹)", te: "లక్ష్యం (₹)" },
+  periodStart: { en: "Start date", te: "ప్రారంభ తేదీ" },
+  periodEnd: { en: "End date", te: "ముగింపు తేదీ" },
+  periodOver: {
+    en: "Period over — last target month has ended. Set new dates in Targets.",
+    te: "కాలం ముగిసింది — గత లక్ష్య నెల అయిపోయింది. లక్ష్యాలు ట్యాబ్‌లో కొత్త తేదీలు పెట్టండి.",
+  },
+  periodNotStarted: {
+    en: "Period not started yet — check start date in Targets.",
+    te: "లక్ష్య కాలం ఇంకా మొదలు కాలేదు — లక్ష్యాలు ట్యాబ్ చూడండి.",
+  },
+  bags: { en: "Bags", te: "బ్యాగులు" },
+  deactivated: { en: "Deactivated!", te: "నిలిపివేయబడింది!" },
 };

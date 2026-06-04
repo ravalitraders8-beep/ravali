@@ -10,6 +10,7 @@ export const labels = {
   shopName: { en: "RAVALI TRADERS", te: "RAVALI TRADERS" },
   loading: { en: "Loading...", te: "వేచండి..." },
   thisMonthAmount: { en: "This Month", te: "ఈ నెల" },
+  thisMonthBags: { en: "Bags This Month", te: "ఈ నెల బ్యాగులు" },
   monthlyTarget: { en: "Target", te: "లక్ష్యం" },
   leaderboard: { en: "Winners", te: "విజేతలు" },
   myHistory: { en: "My Work", te: "మీ పని" },
