@@ -9,8 +9,11 @@ import {
   getAchievementPercentForGift,
   getCategoryGifts,
   getGiftForRank,
+  getHighestReachedGift,
   getUnlockedGiftForContractor,
+  isGiftSupersededByHigher,
   isGiftUnlockedForContractor,
+  isMonthlyTargetReached,
   resolveGiftPosition,
   sortGiftsByPosition,
   type CategoryGift,
@@ -42,26 +45,28 @@ function CategoryGiftCard({
   const { lang } = useLang();
   const position = resolveGiftPosition(gift, gifts);
   const unlocked = isGiftUnlockedForContractor(gift, category, rank, monthlyAmount);
+  const superseded = isGiftSupersededByHigher(gift, category, monthlyAmount);
   const isYourRankGift = rank !== null && position === rank;
   const pct = Math.min(100, Math.round(getAchievementPercentForGift(monthlyAmount, gift, category)));
   const remaining = bagsRemainingForGift(monthlyAmount, gift, category);
   const bags = isBagsCategory(category);
+  const showProgress =
+    !unlocked && !superseded && monthlyAmount > 0 && !isMonthlyTargetReached(monthlyAmount, gift, category);
 
   let lockHint = "";
   if (!unlocked) {
-    if (monthlyAmount <= 0) {
+    if (superseded) {
+      lockHint = t(lang, labels.giftSuperseded.en, labels.giftSuperseded.te);
+    } else if (monthlyAmount <= 0) {
       lockHint = t(lang, labels.giftNeedActivity.en, labels.giftNeedActivity.te);
-    } else {
+    } else if (remaining > 0) {
       const needLabel = bags
         ? t(lang, labels.bagsToGo.en, labels.bagsToGo.te).replace("{n}", String(remaining))
         : t(lang, labels.amountToGo.en, labels.amountToGo.te).replace(
             "{n}",
             formatTargetValueBilingual(lang, category, remaining)
           );
-      lockHint = t(lang, labels.giftNeedTarget.en, labels.giftNeedTarget.te).replace(
-        "{n}",
-        needLabel
-      );
+      lockHint = `${t(lang, labels.giftNeedTarget.en, labels.giftNeedTarget.te)} — ${needLabel}`;
     }
   }
 
@@ -119,7 +124,7 @@ function CategoryGiftCard({
           </p>
         )}
 
-        {!unlocked && monthlyAmount > 0 && (
+        {showProgress && (
           <div className="mt-2">
             <div className="h-2 overflow-hidden rounded-full bg-gray-200">
               <div
@@ -131,7 +136,7 @@ function CategoryGiftCard({
           </div>
         )}
 
-        {!unlocked && monthlyAmount <= 0 && lockHint && (
+        {!unlocked && !showProgress && lockHint && (
           <p className="mt-2 text-xs font-bold text-gray-600">{lockHint}</p>
         )}
 
@@ -156,7 +161,11 @@ export function GiftsSection({
   const gifts = sortGiftsByPosition(getCategoryGifts(category));
   const rank = getContractorCategoryRank(contractorId, category, leaderboard);
   const yourGift = getGiftForRank(category, rank);
-  const rankGiftUnlocked = getUnlockedGiftForContractor(category, rank, monthlyAmount);
+  const highestReached = getHighestReachedGift(category, monthlyAmount);
+  const rankGiftUnlocked =
+    yourGift &&
+    highestReached &&
+    yourGift.id === highestReached.id;
 
   if (gifts.length === 0) {
     return null;
@@ -203,12 +212,20 @@ export function GiftsSection({
         </p>
       )}
 
-      {rankGiftUnlocked && (
+      {highestReached && (
         <p className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-center text-sm font-bold text-green-800">
-          {t(lang, labels.giftUnlockedRank.en, labels.giftUnlockedRank.te).replace(
-            "{rank}",
-            String(rank)
-          )}
+          {rankGiftUnlocked
+            ? t(lang, labels.giftUnlockedRank.en, labels.giftUnlockedRank.te).replace(
+                "{rank}",
+                String(rank)
+              )
+            : t(lang, "Your current gift:", "మీ ప్రస్తుత బహుమతి:")}{" "}
+          {pickBilingual(
+            lang,
+            highestReached.name_english,
+            highestReached.name_telugu
+          )}{" "}
+          ✅
         </p>
       )}
 

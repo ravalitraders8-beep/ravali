@@ -50,12 +50,16 @@ export const labels = {
     te: "లక్ష్యం చేరండి — షాప్ బహుమతులు",
   },
   giftRankHint: {
-    en: "Reach each target to unlock gifts. Lower targets stay unlocked once you pass them.",
-    te: "లక్ష్యం చేరితే బహుమతి తెరుచుకుంటుంది. తక్కువ లక్ష్యాలు చేరిన తర్వాత లాక్ కాదు.",
+    en: "Only your highest reached gift stays unlocked. Lower gifts lock when you pass to a higher tier.",
+    te: "ఎక్కువ లక్ష్యం చేరిన బహుమతి మాత్రమే ఓపెన్. పైకి వెళితే తక్కువవి లాక్.",
   },
   giftNeedTarget: {
-    en: "{n} more to unlock this gift",
-    te: "ఈ బహుమతికి ఇంకా {n}",
+    en: "Reach this target to unlock",
+    te: "ఈ లక్ష్యం చేరితే తెరుచుకుంటుంది",
+  },
+  giftSuperseded: {
+    en: "Locked — you already qualify for a higher gift above this",
+    te: "లాక్ — మీకు పైన ఉన్న బహుమతి ఇప్పటికే రెడీ",
   },
   giftNeedActivity: {
     en: "Add amount this month to qualify",
