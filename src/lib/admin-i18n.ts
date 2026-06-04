@@ -90,6 +90,8 @@ export const adminLabels = {
   },
   filterByTrade: { en: "Filter by trade", te: "పని వారీ" },
   filterByVillage: { en: "Filter by village", te: "ఊరు వారీ" },
+  browseAllMembers: { en: "Browse all members", te: "అందరు సభ్యులు చూడండి" },
+  changeMember: { en: "Change", te: "మార్చు" },
   searchRegistry: { en: "Search members", te: "సభ్యులు వెతకండి" },
   noSearchResults: { en: "No members match your search", te: "మీ వెతకడానికి ఎవరు లేరు" },
   searchFound: { en: "found", te: "దొరికింది" },

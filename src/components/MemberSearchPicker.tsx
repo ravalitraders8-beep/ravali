@@ -12,7 +12,6 @@ export interface MemberSearchPickerProps {
   value: string;
   onChange: (contractorId: string) => void;
   disabled?: boolean;
-  /** When set, list is already scoped to this trade — only village + search filters apply */
   lockedCategoryId?: string;
   emptyMessage?: string;
 }
@@ -26,6 +25,23 @@ function villageLabel(c: Contractor, lang: Lang): string {
   const en = c.village_english.trim();
   if (lang === "te") return te || en || "—";
   return en || te || "—";
+}
+
+function memberMatchesQuery(
+  m: Contractor,
+  q: string,
+  categories: Category[]
+): boolean {
+  const cat = categories.find((row) => row.id === m.category_id);
+  const catLabel = cat ? `${cat.name_english} ${cat.name_telugu}`.toLowerCase() : "";
+  return (
+    m.name_english.toLowerCase().includes(q) ||
+    m.name_telugu.includes(q) ||
+    m.phone.includes(q) ||
+    m.village_english.toLowerCase().includes(q) ||
+    m.village_telugu.includes(q) ||
+    catLabel.includes(q)
+  );
 }
 
 export function MemberSearchPicker({
@@ -45,6 +61,7 @@ export function MemberSearchPicker({
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [villageFilter, setVillageFilter] = useState<string>("all");
+  const [listOpen, setListOpen] = useState(false);
 
   const memberName = (c: Contractor) =>
     pickBilingual(lang, c.name_english, c.name_telugu);
@@ -103,20 +120,7 @@ export function MemberSearchPicker({
     }
     const q = search.trim().toLowerCase();
     if (q) {
-      list = list.filter((m) => {
-        const cat = categories.find((row) => row.id === m.category_id);
-        const catLabel = cat
-          ? `${cat.name_english} ${cat.name_telugu}`.toLowerCase()
-          : "";
-        return (
-          m.name_english.toLowerCase().includes(q) ||
-          m.name_telugu.includes(q) ||
-          m.phone.includes(q) ||
-          m.village_english.toLowerCase().includes(q) ||
-          m.village_telugu.includes(q) ||
-          catLabel.includes(q)
-        );
-      });
+      list = list.filter((m) => memberMatchesQuery(m, q, categories));
     }
     return list.sort((a, b) => memberName(a).localeCompare(memberName(b)));
   }, [
@@ -129,51 +133,182 @@ export function MemberSearchPicker({
     lang,
   ]);
 
-  const openPicker = () => {
-    if (disabled || members.length === 0) return;
-    setSearch("");
-    setVillageFilter("all");
-    if (!lockedCategoryId) setCategoryFilter("all");
-    setOpen(true);
-  };
-
   const pick = (id: string) => {
     onChange(id);
     setOpen(false);
+    setListOpen(false);
   };
 
+  const showInlineList =
+    !disabled &&
+    members.length > 0 &&
+    (listOpen || search.trim().length > 0 || villageFilter !== "all");
+
+  const FilterRow = ({ compact }: { compact?: boolean }) => (
+    <div className={compact ? "space-y-2" : "space-y-3"}>
+      {!lockedCategoryId && categoryOptions.length > 1 && (
+        <div>
+          <p className="mb-1.5 text-xs font-black uppercase tracking-wide text-gray-500">
+            {L("filterByTrade")}
+          </p>
+          <div className="flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
+            <FilterChip
+              active={categoryFilter === "all"}
+              onClick={() => setCategoryFilter("all")}
+              label={L("filterAll")}
+              compact={compact}
+            />
+            {categoryOptions.map((cat) => (
+              <FilterChip
+                key={cat.id}
+                active={categoryFilter === cat.id}
+                onClick={() => setCategoryFilter(cat.id)}
+                label={`${cat.icon} ${categoryName(cat)}`}
+                compact={compact}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+      {villageOptions.length > 1 && (
+        <div>
+          <p className="mb-1.5 text-xs font-black uppercase tracking-wide text-gray-500">
+            {L("filterByVillage")}
+          </p>
+          <div className="flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
+            <FilterChip
+              active={villageFilter === "all"}
+              onClick={() => setVillageFilter("all")}
+              label={L("filterAll")}
+              compact={compact}
+            />
+            {villageOptions.map((v) => (
+              <FilterChip
+                key={v.key}
+                active={villageFilter === v.key}
+                onClick={() => setVillageFilter(v.key)}
+                label={v.label}
+                compact={compact}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const MemberList = ({
+    items,
+    maxHeight,
+  }: {
+    items: Contractor[];
+    maxHeight?: string;
+  }) => (
+    <ul
+      className={`overflow-y-auto ${maxHeight ?? ""}`}
+      style={maxHeight ? { maxHeight } : undefined}
+    >
+      {items.length === 0 ? (
+        <li className="rounded-2xl bg-gray-50 py-8 text-center text-sm font-bold text-gray-500">
+          {L("noSearchResults")}
+        </li>
+      ) : (
+        items.map((m) => (
+          <MemberRow
+            key={m.id}
+            member={m}
+            categories={categories}
+            isSelected={m.id === value}
+            lockedCategoryId={lockedCategoryId}
+            onPick={() => pick(m.id)}
+            memberName={memberName}
+            categoryName={categoryName}
+            lang={lang}
+            villageLabel={villageLabel}
+          />
+        ))
+      )}
+    </ul>
+  );
+
   return (
-    <>
-      <button
-        type="button"
-        onClick={openPicker}
+    <div className="mt-1 space-y-2">
+      {/* Direct search — always on the form */}
+      <input
+        type="search"
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setListOpen(true);
+        }}
+        onFocus={() => setListOpen(true)}
         disabled={disabled || members.length === 0}
-        className="mt-1 flex min-h-[56px] w-full items-center justify-between gap-3 rounded-xl border-2 border-gray-200 bg-white px-4 text-left transition-colors hover:border-[#e85d00] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-70"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-      >
-        <span className="min-w-0 flex-1">
-          {selected ? (
-            <>
-              <span className="block truncate text-base font-black text-[#1a2744]">
-                {memberName(selected)}
-              </span>
-              <span className="mt-0.5 block truncate text-sm font-semibold text-gray-500">
-                📞 {selected.phone} · {villageLabel(selected, lang)}
-              </span>
-            </>
-          ) : (
-            <span className="text-base font-bold text-gray-500">
-              {members.length === 0
-                ? (emptyMessage ?? L("noContractorsInCategory"))
-                : L("pickMember")}
-            </span>
+        placeholder={
+          members.length === 0
+            ? (emptyMessage ?? L("noContractorsInCategory"))
+            : L("searchMemberPicker")
+        }
+        className="min-h-[52px] w-full rounded-xl border-2 border-gray-200 bg-white px-4 text-base font-bold text-[#1a2744] placeholder:font-semibold placeholder:text-gray-400 focus:border-[#e85d00] disabled:bg-gray-100"
+        aria-label={L("searchMemberPicker")}
+      />
+
+      {villageOptions.length > 1 && (
+        <FilterRow compact />
+      )}
+
+      {showInlineList && (
+        <div className="rounded-2xl border-2 border-orange-100 bg-white shadow-sm">
+          <p className="border-b border-orange-50 px-3 py-2 text-center text-xs font-bold text-[#e85d00]">
+            {filtered.length} {L("searchFound")}
+          </p>
+          <div className="p-2">
+            <MemberList items={filtered} maxHeight="240px" />
+          </div>
+          {filtered.length > 4 && (
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="w-full border-t border-orange-100 py-3 text-sm font-black text-[#e85d00]"
+            >
+              {L("browseAllMembers")} →
+            </button>
           )}
-        </span>
-        <span className="shrink-0 text-2xl text-gray-400" aria-hidden>
-          ›
-        </span>
-      </button>
+        </div>
+      )}
+
+      {selected && (
+        <div className="flex items-center gap-3 rounded-xl border-2 border-[#e85d00] bg-orange-50 px-4 py-3">
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-base font-black text-[#1a2744]">
+              ✓ {memberName(selected)}
+            </span>
+            <span className="mt-0.5 block truncate text-sm font-semibold text-gray-600">
+              📞 {selected.phone} · {villageLabel(selected, lang)}
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setListOpen(true);
+              setOpen(true);
+            }}
+            className="shrink-0 rounded-lg bg-white px-3 py-2 text-sm font-bold text-[#e85d00]"
+          >
+            {L("changeMember")}
+          </button>
+        </div>
+      )}
+
+      {!showInlineList && !selected && members.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          disabled={disabled}
+          className="w-full rounded-xl border-2 border-dashed border-gray-300 py-3 text-sm font-bold text-[#1a2744] hover:border-[#e85d00]"
+        >
+          {L("browseAllMembers")}
+        </button>
+      )}
 
       {open && (
         <div
@@ -210,7 +345,6 @@ export function MemberSearchPicker({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={L("searchMemberPicker")}
-                autoFocus
                 className="min-h-[52px] w-full rounded-2xl border-0 bg-white px-4 text-base font-bold text-[#1a2744] shadow-inner placeholder:font-semibold placeholder:text-gray-400"
               />
             </div>
@@ -218,114 +352,82 @@ export function MemberSearchPicker({
 
           <div className="shrink-0 border-b border-orange-100 bg-white px-4 py-3 shadow-sm">
             <div className="mx-auto max-w-lg space-y-3">
-              {!lockedCategoryId && categoryOptions.length > 1 && (
-                <div>
-                  <p className="mb-1.5 text-xs font-black uppercase tracking-wide text-gray-500">
-                    {L("filterByTrade")}
-                  </p>
-                  <div className="flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
-                    <FilterChip
-                      active={categoryFilter === "all"}
-                      onClick={() => setCategoryFilter("all")}
-                      label={L("filterAll")}
-                    />
-                    {categoryOptions.map((cat) => (
-                      <FilterChip
-                        key={cat.id}
-                        active={categoryFilter === cat.id}
-                        onClick={() => setCategoryFilter(cat.id)}
-                        label={`${cat.icon} ${categoryName(cat)}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {villageOptions.length > 1 && (
-                <div>
-                  <p className="mb-1.5 text-xs font-black uppercase tracking-wide text-gray-500">
-                    {L("filterByVillage")}
-                  </p>
-                  <div className="flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
-                    <FilterChip
-                      active={villageFilter === "all"}
-                      onClick={() => setVillageFilter("all")}
-                      label={L("filterAll")}
-                    />
-                    {villageOptions.map((v) => (
-                      <FilterChip
-                        key={v.key}
-                        active={villageFilter === v.key}
-                        onClick={() => setVillageFilter(v.key)}
-                        label={v.label}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
+              <FilterRow />
               <p className="text-center text-sm font-bold text-[#e85d00]">
                 {filtered.length} {L("searchFound")}
               </p>
             </div>
           </div>
 
-          <ul className="mx-auto min-h-0 w-full max-w-lg flex-1 overflow-y-auto px-4 py-3">
-            {filtered.length === 0 ? (
-              <li className="rounded-2xl bg-white py-12 text-center text-base font-bold text-gray-500">
-                {L("noSearchResults")}
-              </li>
-            ) : (
-              filtered.map((m) => {
-                const cat = categories.find((c) => c.id === m.category_id);
-                const isSelected = m.id === value;
-                return (
-                  <li key={m.id} className="mb-2">
-                    <button
-                      type="button"
-                      onClick={() => pick(m.id)}
-                      className={`flex w-full min-h-[72px] items-center gap-3 rounded-2xl border-2 px-4 py-3 text-left transition-colors ${
-                        isSelected
-                          ? "border-[#e85d00] bg-orange-50"
-                          : "border-gray-100 bg-white hover:border-orange-200"
-                      }`}
-                    >
-                      <span
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl"
-                        style={{
-                          backgroundColor: cat ? `${cat.color_hex}22` : "#f3f4f6",
-                        }}
-                      >
-                        {cat?.icon ?? "👷"}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-lg font-black text-[#1a2744]">
-                          {memberName(m)}
-                        </span>
-                        <span className="mt-0.5 block text-sm font-semibold text-gray-600">
-                          📞 {m.phone}
-                        </span>
-                        <span className="mt-0.5 block truncate text-sm font-medium text-gray-500">
-                          📍 {villageLabel(m, lang)}
-                          {!lockedCategoryId && cat
-                            ? ` · ${categoryName(cat)}`
-                            : ""}
-                        </span>
-                      </span>
-                      {isSelected && (
-                        <span className="shrink-0 text-2xl text-[#e85d00]" aria-hidden>
-                          ✓
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                );
-              })
-            )}
-          </ul>
+          <div className="mx-auto min-h-0 w-full max-w-lg flex-1 overflow-hidden px-4 py-3">
+            <MemberList items={filtered} />
+          </div>
         </div>
       )}
-    </>
+    </div>
+  );
+}
+
+function MemberRow({
+  member: m,
+  categories,
+  isSelected,
+  lockedCategoryId,
+  onPick,
+  memberName,
+  categoryName,
+  lang,
+  villageLabel,
+}: {
+  member: Contractor;
+  categories: Category[];
+  isSelected: boolean;
+  lockedCategoryId?: string;
+  onPick: () => void;
+  memberName: (c: Contractor) => string;
+  categoryName: (cat: Category) => string;
+  lang: Lang;
+  villageLabel: (c: Contractor, lang: Lang) => string;
+}) {
+  const cat = categories.find((c) => c.id === m.category_id);
+  return (
+    <li className="mb-2 last:mb-0">
+      <button
+        type="button"
+        onClick={onPick}
+        className={`flex w-full min-h-[64px] items-center gap-3 rounded-2xl border-2 px-3 py-2.5 text-left transition-colors ${
+          isSelected
+            ? "border-[#e85d00] bg-orange-50"
+            : "border-gray-100 bg-white hover:border-orange-200"
+        }`}
+      >
+        <span
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl"
+          style={{
+            backgroundColor: cat ? `${cat.color_hex}22` : "#f3f4f6",
+          }}
+        >
+          {cat?.icon ?? "👷"}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-base font-black text-[#1a2744]">
+            {memberName(m)}
+          </span>
+          <span className="mt-0.5 block text-sm font-semibold text-gray-600">
+            📞 {m.phone}
+          </span>
+          <span className="mt-0.5 block truncate text-xs font-medium text-gray-500">
+            📍 {villageLabel(m, lang)}
+            {!lockedCategoryId && cat ? ` · ${categoryName(cat)}` : ""}
+          </span>
+        </span>
+        {isSelected && (
+          <span className="shrink-0 text-xl text-[#e85d00]" aria-hidden>
+            ✓
+          </span>
+        )}
+      </button>
+    </li>
   );
 }
 
@@ -333,16 +435,20 @@ function FilterChip({
   active,
   onClick,
   label,
+  compact,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
+  compact?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold transition-colors ${
+      className={`shrink-0 rounded-full font-bold transition-colors ${
+        compact ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm"
+      } ${
         active
           ? "bg-[#e85d00] text-white shadow-sm"
           : "bg-gray-100 text-[#1a2744] hover:bg-orange-50"
