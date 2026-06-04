@@ -7,7 +7,7 @@ import { adminLabels, ta } from "@/lib/admin-i18n";
 import {
   formatGiftPosition,
   getGiftTargetAmount,
-  GIFT_IMAGE_PRESETS,
+  getGiftImagePresetsForCategory,
   MAX_GIFT_RANKS,
   presetGiftNames,
   rankEmoji,
@@ -44,6 +44,7 @@ export function CategoryGiftPlanEditor({
   };
 
   const sorted = sortGiftsByPosition(gifts ?? []);
+  const imagePresets = getGiftImagePresetsForCategory(category);
   const categoryDefault = Math.max(
     1,
     Math.round(Number(category.monthly_target_amount) || 0) || 100
@@ -92,7 +93,7 @@ export function CategoryGiftPlanEditor({
   };
 
   const setPreset = (index: number, imageSrc: string) => {
-    const preset = GIFT_IMAGE_PRESETS.find((p) => p.value === imageSrc);
+    const preset = imagePresets.find((p) => p.value === imageSrc);
     const names = preset ? presetGiftNames(preset) : null;
     updateRow(index, {
       image_src: imageSrc,
@@ -208,13 +209,13 @@ export function CategoryGiftPlanEditor({
                     <p className="mb-2 text-xs font-black uppercase text-gray-500">
                       {L("giftPreview")}
                     </p>
-                    <div className="relative h-24 w-24">
+                    <div className="relative h-24 w-24 overflow-hidden rounded-lg">
                       <Image
                         src={g.image_src}
                         alt={g.name_english}
                         width={96}
                         height={96}
-                        className="h-full w-full object-contain"
+                        className="h-full w-full object-cover"
                       />
                     </div>
                     <p className="mt-2 text-center text-sm font-black text-[#1a2744]">
@@ -228,7 +229,7 @@ export function CategoryGiftPlanEditor({
                         {L("giftDesign")}
                       </p>
                       <div className="grid grid-cols-4 gap-2">
-                        {GIFT_IMAGE_PRESETS.map((p) => {
+                        {imagePresets.map((p) => {
                           const active = g.image_src === p.value;
                           return (
                             <button
@@ -246,7 +247,7 @@ export function CategoryGiftPlanEditor({
                                 alt={p.labelEn}
                                 width={40}
                                 height={40}
-                                className="h-10 w-10 object-contain"
+                                className="h-10 w-10 rounded-md object-cover"
                               />
                               <span className="mt-1 text-[10px] font-bold leading-tight">
                                 {lang === "te" ? p.labelTe : p.labelEn}

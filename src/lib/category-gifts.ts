@@ -1,4 +1,9 @@
 import { isBagsCategory, formatTargetValueBilingual } from "@/lib/category-period";
+import {
+  applyMasonGiftImages,
+  isMasonCategory,
+  MASON_GIFT_IMAGE_PRESETS,
+} from "@/lib/mason-gift-images";
 import { simplifyTeluguToLocal } from "@/lib/local-telugu";
 import { sanitizeTeluguOutput } from "@/lib/transliterate";
 import type { Category, CategoryGift, Lang } from "./types";
@@ -7,11 +12,9 @@ export type { CategoryGift };
 
 export const MAX_GIFT_RANKS = 10;
 
+/** Mason uses real photos; other trades can reuse these paths until custom assets exist. */
 export const GIFT_IMAGE_PRESETS: { value: string; labelEn: string; labelTe: string }[] = [
-  { value: "/gifts/mason-tv.svg", labelEn: "TV", labelTe: "టీవీ" },
-  { value: "/gifts/mason-grinder.svg", labelEn: "Grinder", labelTe: "గ్రైండర్" },
-  { value: "/gifts/mason-iron-box.svg", labelEn: "Iron box", labelTe: "ఇనుము బాక్స్" },
-  { value: "/gifts/mason-design-kit.svg", labelEn: "Design kit", labelTe: "డిజైన్ కిట్" },
+  ...MASON_GIFT_IMAGE_PRESETS,
 ];
 
 /** Legacy DB rows used bag counts (100, 200, …) in min_value; new rows use rank 1, 2, 3… */
@@ -26,7 +29,7 @@ const FALLBACK_MASON: CategoryGift[] = [
     name_telugu: "టీవీ బహుమతి",
     description_english: "1st place — after you reach target",
     description_telugu: "① స్థానం — లక్ష్యం చేరిన తర్వాత",
-    image_src: "/gifts/mason-tv.svg",
+    image_src: "/gifts/mason-tv.jpg",
   },
   {
     id: "grinder",
@@ -36,7 +39,7 @@ const FALLBACK_MASON: CategoryGift[] = [
     name_telugu: "మిక్సీ గ్రైండర్",
     description_english: "2nd place — after you reach target",
     description_telugu: "② స్థానం — లక్ష్యం చేరిన తర్వాత",
-    image_src: "/gifts/mason-grinder.svg",
+    image_src: "/gifts/mason-grinder.jpg",
   },
   {
     id: "iron-box",
@@ -46,7 +49,7 @@ const FALLBACK_MASON: CategoryGift[] = [
     name_telugu: "ఇనుము బాక్స్",
     description_english: "3rd place — after you reach target",
     description_telugu: "③ స్థానం — లక్ష్యం చేరిన తర్వాత",
-    image_src: "/gifts/mason-iron-box.svg",
+    image_src: "/gifts/mason-iron-box.jpg",
   },
   {
     id: "design-kit",
@@ -56,7 +59,7 @@ const FALLBACK_MASON: CategoryGift[] = [
     name_telugu: "డిజైన్ కిట్",
     description_english: "4th place — after you reach target",
     description_telugu: "④ స్థానం — లక్ష్యం చేరిన తర్వాత",
-    image_src: "/gifts/mason-design-kit.svg",
+    image_src: "/gifts/mason-design-kit.jpg",
   },
 ];
 
@@ -69,7 +72,7 @@ function normalizeGift(raw: unknown): CategoryGift | null {
   if (!name_english && name_telugu) name_english = name_telugu;
   if (!name_telugu && name_english) name_telugu = name_english;
   name_telugu = simplifyTeluguToLocal(sanitizeTeluguOutput(name_telugu));
-  const image_src = String(g.image_src ?? "/gifts/mason-design-kit.svg").trim();
+  const image_src = String(g.image_src ?? "/gifts/mason-design-kit.jpg").trim();
   const targetRaw = Number(g.target_amount);
   const target_amount =
     Number.isFinite(targetRaw) && targetRaw > 0 ? Math.round(targetRaw) : undefined;
@@ -114,13 +117,22 @@ export function hasStoredCategoryRewards(category: Category): boolean {
 }
 
 export function getCategoryGifts(category: Category): CategoryGift[] {
+  let gifts: CategoryGift[];
   if (hasStoredCategoryRewards(category)) {
-    return parseCategoryRewards(category.category_rewards);
+    gifts = parseCategoryRewards(category.category_rewards);
+  } else if (isMasonCategory(category)) {
+    gifts = [...FALLBACK_MASON].sort((a, b) => a.min_value - b.min_value);
+  } else {
+    return [];
   }
-  if (category.name_english.toLowerCase().includes("mason")) {
-    return [...FALLBACK_MASON].sort((a, b) => a.min_value - b.min_value);
-  }
-  return [];
+  return applyMasonGiftImages(gifts, category);
+}
+
+export function getGiftImagePresetsForCategory(
+  category: Category
+): { value: string; labelEn: string; labelTe: string }[] {
+  if (isMasonCategory(category)) return [...MASON_GIFT_IMAGE_PRESETS];
+  return GIFT_IMAGE_PRESETS;
 }
 
 /** Old saves used bag/amount thresholds in min_value; new saves use rank 1, 2, 3… */
@@ -322,6 +334,19 @@ export function presetGiftNames(preset: (typeof GIFT_IMAGE_PRESETS)[number]): {
   name_telugu: string;
 } {
   const map: Record<string, { name_english: string; name_telugu: string }> = {
+    "/gifts/mason-tv.jpg": { name_english: "TV Gift", name_telugu: "టీవీ బహుమతి" },
+    "/gifts/mason-grinder.jpg": {
+      name_english: "Mixer Grinder",
+      name_telugu: "మిక్సీ గ్రైండర్",
+    },
+    "/gifts/mason-iron-box.jpg": {
+      name_english: "Iron Box",
+      name_telugu: "ఇనుము బాక్స్",
+    },
+    "/gifts/mason-design-kit.jpg": {
+      name_english: "Design Kit",
+      name_telugu: "డిజైన్ కిట్",
+    },
     "/gifts/mason-tv.svg": { name_english: "TV Gift", name_telugu: "టీవీ బహుమతి" },
     "/gifts/mason-grinder.svg": {
       name_english: "Mixer Grinder",

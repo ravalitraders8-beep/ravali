@@ -81,7 +81,7 @@ function CategoryGiftCard({
       } ${unlocked ? "ring-2 ring-[#e85d00] ring-offset-2" : ""}`}
     >
       <div
-        className={`relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl bg-white p-2 ${
+        className={`relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl bg-white ${
           unlocked ? "" : "opacity-60 grayscale"
         }`}
       >
@@ -90,7 +90,7 @@ function CategoryGiftCard({
           alt={pickBilingual(lang, gift.name_english, gift.name_telugu)}
           width={72}
           height={72}
-          className="h-full w-full object-contain"
+          className="h-full w-full object-cover"
         />
         {!unlocked && (
           <span
