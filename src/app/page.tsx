@@ -49,23 +49,19 @@ export default function HomePage() {
     finishSetupCheck();
   }, [router]);
 
-  if (!introDone) {
-    return <IntroSplash />;
-  }
-
-  if (checking) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fff8f0]">
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
-  if (!ready) return <SetupRequired />;
-
   return (
     <UserPortalShell>
-      <PhoneLogin />
+      {!introDone ? (
+        <IntroSplash />
+      ) : checking ? (
+        <div className="flex min-h-screen items-center justify-center bg-[#fff8f0]">
+          <LoadingSpinner />
+        </div>
+      ) : !ready ? (
+        <SetupRequired />
+      ) : (
+        <PhoneLogin />
+      )}
     </UserPortalShell>
   );
 }

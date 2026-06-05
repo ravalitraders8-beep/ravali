@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { UserPortalShell } from "@/components/UserPortalShell";
 import { fetchContractorDashboard } from "@/lib/api-client";
 import { clearContractorSession, getContractorSession } from "@/lib/session";
 import { isPwaInstalled } from "@/lib/pwa-install-store";
@@ -34,8 +35,10 @@ export default function DashboardIndexPage() {
   }, [router]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#fff8f0]">
-      <LoadingSpinner message="వేచండి..." />
-    </div>
+    <UserPortalShell>
+      <div className="flex min-h-screen items-center justify-center bg-[#fff8f0]">
+        <LoadingSpinner message="వేచండి..." />
+      </div>
+    </UserPortalShell>
   );
 }

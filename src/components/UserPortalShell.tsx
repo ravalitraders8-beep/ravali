@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
 import { useSyncExternalStore } from "react";
 import { MandatoryInstallScreen } from "./MandatoryInstallScreen";
-import { markInstallPromptForSession } from "@/lib/session";
 import { isPwaInstalled, subscribePwaInstall } from "@/lib/pwa-install-store";
 
 function isMobileDevice(): boolean {
@@ -16,19 +14,21 @@ function subscribeMobile(onChange: () => void) {
 }
 
 /**
- * User (contractor) portal — PWA install required on phones before login or dashboard.
+ * User (contractor) portal — mandatory PWA install popup on phones before any content.
  */
 export function UserPortalShell({ children }: { children: React.ReactNode }) {
   const installed = useSyncExternalStore(subscribePwaInstall, isPwaInstalled, () => false);
   const isMobile = useSyncExternalStore(subscribeMobile, isMobileDevice, () => false);
+  const needsInstall = isMobile && !installed;
 
-  useEffect(() => {
-    markInstallPromptForSession();
-  }, []);
-
-  if (isMobile && !installed) {
-    return <MandatoryInstallScreen />;
-  }
-
-  return <>{children}</>;
+  return (
+    <>
+      {needsInstall ? (
+        <div className="min-h-screen bg-[#fff8f0]" aria-hidden />
+      ) : (
+        children
+      )}
+      {needsInstall && <MandatoryInstallScreen />}
+    </>
+  );
 }

@@ -67,23 +67,17 @@ export default function DashboardPage() {
     }
   }, [errorKind, lang]);
 
-  if (!introDone) {
-    return <IntroSplash />;
-  }
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fff8f0]">
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
-  if (errorKind === "setup") return <SetupRequired />;
-
-  if (error || !data || !data.category) {
-    return (
-      <UserPortalShell>
+  return (
+    <UserPortalShell>
+      {!introDone ? (
+        <IntroSplash />
+      ) : loading ? (
+        <div className="flex min-h-screen items-center justify-center bg-[#fff8f0]">
+          <LoadingSpinner />
+        </div>
+      ) : errorKind === "setup" ? (
+        <SetupRequired />
+      ) : error || !data || !data.category ? (
         <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#fff8f0] p-6 text-center">
           <span className="text-6xl">😔</span>
           <p className="text-xl font-black text-red-700 sm:text-2xl">{errorMessage}</p>
@@ -98,13 +92,9 @@ export default function DashboardPage() {
             ← {t(lang, labels.backToLogin.en, labels.backToLogin.te)}
           </button>
         </div>
-      </UserPortalShell>
-    );
-  }
-
-  return (
-    <UserPortalShell>
-      <ContractorDashboard data={data} />
+      ) : (
+        <ContractorDashboard data={data} />
+      )}
     </UserPortalShell>
   );
 }
