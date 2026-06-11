@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { formatINR } from "@/lib/currency";
+import { formatTargetValueBilingual } from "@/lib/category-period";
 import { labels, t, pickBilingual } from "@/lib/i18n";
 import { useLang } from "@/context/LangContext";
 import type { Category, LeaderboardEntry } from "@/lib/types";
@@ -90,7 +90,7 @@ export function UserLeaderboard({
                   )}
                 </div>
                 <span className="shrink-0 text-lg font-black text-[#e85d00]">
-                  {formatINR(Number(entry.total_amount))}
+                  {formatTargetValueBilingual(lang, category, Number(entry.total_amount))}
                 </span>
               </li>
             );
