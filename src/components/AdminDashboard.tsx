@@ -39,6 +39,11 @@ import {
 import { clearAdminPinSession } from "@/lib/session";
 import { phoneTelHref } from "@/lib/phone-utils";
 import {
+  buildDayTransactionsCsv,
+  downloadTextFile,
+  transactionsForDate,
+} from "@/lib/export-transactions";
+import {
   deriveCategoryMonthlyTarget,
   getCategoryGifts,
   getGiftTargetAmount,
@@ -104,7 +109,12 @@ export function AdminDashboard() {
     monthTotalAmount: number;
     topContractor: { name_telugu: string; amount: number } | null;
     targetAchievedCount: number;
-    leaderboard: Array<{ name_telugu: string; total_amount: number; category_telugu: string }>;
+    leaderboard: Array<{
+      name_telugu: string;
+      total_amount: number;
+      category_telugu: string;
+      category_english?: string;
+    }>;
   } | null>(null);
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -141,6 +151,10 @@ export function AdminDashboard() {
   const [txCategoryId, setTxCategoryId] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [registrySearch, setRegistrySearch] = useState("");
+  const [contractorsSearch, setContractorsSearch] = useState("");
+  const [txExportDate, setTxExportDate] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
   const [rewardsDraft, setRewardsDraft] = useState<Record<string, CategoryGift[]>>({});
   const [deliverContractorId, setDeliverContractorId] = useState("");
   const [deliverGiftId, setDeliverGiftId] = useState("");
@@ -186,6 +200,25 @@ export function AdminDashboard() {
     [contractors, lang]
   );
 
+  const contractorsListFiltered = useMemo(() => {
+    const q = contractorsSearch.trim().toLowerCase();
+    if (!q) return contractorsSorted;
+    return contractorsSorted.filter((c) => {
+      const cat = categories.find((catRow) => catRow.id === c.category_id);
+      const catLabel = cat
+        ? `${cat.name_english} ${cat.name_telugu}`.toLowerCase()
+        : "";
+      return (
+        c.name_english.toLowerCase().includes(q) ||
+        c.name_telugu.includes(q) ||
+        c.phone.includes(q) ||
+        c.village_english.toLowerCase().includes(q) ||
+        c.village_telugu.includes(q) ||
+        catLabel.includes(q)
+      );
+    });
+  }, [contractorsSorted, contractorsSearch, categories]);
+
   const registryList = useMemo(() => {
     let list = activeContractors;
     if (categoryFilter !== "all") {
@@ -217,6 +250,25 @@ export function AdminDashboard() {
     if (!txCategoryId) return activeContractors;
     return activeContractors.filter((c) => c.category_id === txCategoryId);
   }, [activeContractors, txCategoryId]);
+
+  const txExportDayCount = useMemo(
+    () => transactionsForDate(transactions, txExportDate).length,
+    [transactions, txExportDate]
+  );
+
+  const categoryUsage = useMemo(() => {
+    return categories.map((cat) => {
+      const inCategory = activeContractors.filter((c) => c.category_id === cat.id);
+      const registered = inCategory.length;
+      const loggedInOnce = inCategory.filter((c) => c.first_login_at).length;
+      return { cat, registered, loggedInOnce };
+    });
+  }, [categories, activeContractors]);
+
+  const totalLoggedInOnce = useMemo(
+    () => activeContractors.filter((c) => c.first_login_at).length,
+    [activeContractors]
+  );
 
   const txCategory = useMemo(
     () => categories.find((c) => c.id === txCategoryId),
@@ -557,6 +609,20 @@ export function AdminDashboard() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const downloadDayTransactions = () => {
+    if (txExportDayCount === 0) {
+      showToast(L("noTransactionsOnDay"));
+      return;
+    }
+    const csv = buildDayTransactionsCsv(
+      transactions,
+      contractors,
+      categories,
+      txExportDate
+    );
+    downloadTextFile(`ravali-transactions-${txExportDate}.csv`, csv);
+  };
+
   const postAction = async (body: Record<string, unknown>) => {
     const { ok, data } = await adminPostAction(body);
     if (!ok) {
@@ -704,8 +770,9 @@ export function AdminDashboard() {
       <main className="mx-auto max-w-5xl space-y-4 p-4">
         {tab === "overview" && stats && (
           <>
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
               <StatCard label={L("activeContractors")} value={stats.totalActive} />
+              <StatCard label={L("loggedInOnce")} value={totalLoggedInOnce} />
               <StatCard label={L("monthTotal")} value={formatINR(stats.monthTotalAmount)} small />
               <StatCard
                 label={L("topContractor")}
@@ -714,6 +781,36 @@ export function AdminDashboard() {
               />
               <StatCard label={L("targetAchieved")} value={stats.targetAchievedCount} />
             </div>
+            <Panel title={L("activeUsersByCategory")}>
+              <p className="mb-4 text-center text-sm font-medium text-gray-600">
+                {L("categoryUsageHint")}
+              </p>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {categoryUsage.map(({ cat, registered, loggedInOnce }) => (
+                  <div
+                    key={cat.id}
+                    className="flex flex-col items-center rounded-2xl border-2 border-gray-100 bg-gray-50 p-4"
+                  >
+                    <span className="text-3xl">{cat.icon}</span>
+                    <span className="mt-2 text-center text-xs font-bold text-gray-700">
+                      {categoryName(cat)}
+                    </span>
+                    <div className="mt-3 flex w-full gap-2">
+                      <div className="flex-1 rounded-xl bg-white px-2 py-2 text-center shadow-sm">
+                        <p className="text-xl font-black text-[#1a2744]">{registered}</p>
+                        <p className="text-[10px] font-bold text-gray-500">{L("registeredPhones")}</p>
+                      </div>
+                      <div className="flex-1 rounded-xl bg-orange-50 px-2 py-2 text-center shadow-sm">
+                        <p className="text-xl font-black text-[#e85d00]">{loggedInOnce}</p>
+                        <p className="text-[10px] font-bold text-gray-500">
+                          {L("loggedInAtLeastOnce")}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
             <Panel title={L("monthTotal")}>
               {chartData.length === 0 ? (
                 <p className="py-12 text-center text-gray-500">{L("noContractors")}</p>
@@ -942,11 +1039,33 @@ export function AdminDashboard() {
               </Panel>
             )}
 
-            <Panel title={L("contractorsList")}>
+            <Panel title={`${L("contractorsList")} (${contractorsListFiltered.length})`}>
+              {contractors.length > 0 && (
+                <>
+                  <label className="mb-4 block text-sm font-bold text-gray-800">
+                    {L("searchRegistry")}
+                    <input
+                      type="search"
+                      value={contractorsSearch}
+                      onChange={(e) => setContractorsSearch(e.target.value)}
+                      placeholder={L("searchContractor")}
+                      className="mt-2 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4 text-base"
+                      autoComplete="off"
+                    />
+                  </label>
+                  {contractorsSearch.trim() && (
+                    <p className="-mt-2 mb-4 text-center text-xs font-semibold text-gray-500">
+                      {contractorsListFiltered.length} {L("searchFound")}
+                    </p>
+                  )}
+                </>
+              )}
               {contractors.length === 0 ? (
                 <p className="py-8 text-center text-gray-500">{L("noContractors")}</p>
+              ) : contractorsListFiltered.length === 0 ? (
+                <p className="py-8 text-center text-gray-500">{L("noSearchResults")}</p>
               ) : (
-                contractorsSorted.map((c) => {
+                contractorsListFiltered.map((c) => {
                   const tel = phoneTelHref(c.phone);
                   return (
                   <div
@@ -1265,6 +1384,34 @@ export function AdminDashboard() {
               </div>
             </Panel>
             <Panel title={L("recentTx")}>
+              {transactions.length > 0 && (
+                <div className="mb-4 rounded-xl border border-gray-100 bg-gray-50 p-4">
+                  <p className="mb-3 text-sm font-semibold text-gray-600">
+                    {L("downloadDayHint")}
+                  </p>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <label className="flex-1 text-sm font-bold text-gray-800">
+                      {L("downloadDayList")}
+                      <input
+                        type="date"
+                        value={txExportDate}
+                        onChange={(e) => setTxExportDate(e.target.value)}
+                        className="mt-2 min-h-[48px] w-full rounded-xl border-2 border-gray-200 px-4 text-base"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={downloadDayTransactions}
+                      className="btn-big min-h-[48px] rounded-2xl bg-[#1a2744] px-6 text-white sm:shrink-0"
+                    >
+                      ⬇️ {L("downloadDayCsv")}
+                    </button>
+                  </div>
+                  <p className="mt-2 text-center text-xs font-semibold text-gray-500">
+                    {txExportDayCount} {L("transactionsOnDay")}
+                  </p>
+                </div>
+              )}
               {transactions.length === 0 ? (
                 <p className="py-8 text-center text-gray-500">
                   {ta(lang, "No transactions yet", "ఇంకా మొత్తం లేదు")}

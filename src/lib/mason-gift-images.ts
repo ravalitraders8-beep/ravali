@@ -19,15 +19,30 @@ export function isMasonCategory(category: Category): boolean {
   return category.name_english.toLowerCase().includes("mason");
 }
 
+function isCustomGiftImageSrc(src: string): boolean {
+  const s = src.trim();
+  if (!s) return false;
+  if (/^https?:\/\//i.test(s)) return true;
+  if (s.endsWith(".svg")) return false;
+  return true;
+}
+
 export function resolveMasonGiftImageSrc(gift: Pick<CategoryGift, "id" | "image_src">): string {
+  const src = (gift.image_src ?? "").trim();
+  if (isCustomGiftImageSrc(src)) {
+    return src.startsWith("/") || /^https?:\/\//i.test(src) ? src : `/${src}`;
+  }
+
   const id = gift.id.toLowerCase().trim();
   if (MASON_GIFT_IMAGE_BY_ID[id]) return MASON_GIFT_IMAGE_BY_ID[id];
 
-  const src = (gift.image_src ?? "").toLowerCase();
-  if (src.includes("tv")) return MASON_GIFT_IMAGE_BY_ID.tv;
-  if (src.includes("grinder")) return MASON_GIFT_IMAGE_BY_ID.grinder;
-  if (src.includes("iron")) return MASON_GIFT_IMAGE_BY_ID["iron-box"];
-  if (src.includes("design") || src.includes("kit")) return MASON_GIFT_IMAGE_BY_ID["design-kit"];
+  const lower = src.toLowerCase();
+  if (lower.includes("tv")) return MASON_GIFT_IMAGE_BY_ID.tv;
+  if (lower.includes("grinder")) return MASON_GIFT_IMAGE_BY_ID.grinder;
+  if (lower.includes("iron")) return MASON_GIFT_IMAGE_BY_ID["iron-box"];
+  if (lower.includes("design") || lower.includes("kit")) {
+    return MASON_GIFT_IMAGE_BY_ID["design-kit"];
+  }
 
   return MASON_GIFT_IMAGE_BY_ID.tv;
 }

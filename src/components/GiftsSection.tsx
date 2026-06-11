@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { GiftImage } from "./GiftImage";
 import { getContractorCategoryRank } from "@/lib/category-about";
 import { formatTargetValueBilingual, isBagsCategory } from "@/lib/category-period";
 import {
@@ -85,7 +85,7 @@ function CategoryGiftCard({
           unlocked ? "" : "opacity-60 grayscale"
         }`}
       >
-        <Image
+        <GiftImage
           src={gift.image_src}
           alt={pickBilingual(lang, gift.name_english, gift.name_telugu)}
           width={72}

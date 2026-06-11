@@ -18,6 +18,14 @@ export const adminLabels = {
   rewards: { en: "Rewards", te: "బహుమతులు" },
   targets: { en: "Targets", te: "లక్ష్యం" },
   activeContractors: { en: "Active", te: "ఆన్" },
+  loggedInOnce: { en: "Logged in", te: "లాగిన్ అయ్యారు" },
+  activeUsersByCategory: { en: "Members by trade", te: "పని వారీ సభ్యులు" },
+  registeredPhones: { en: "Registered", te: "నమోదు" },
+  loggedInAtLeastOnce: { en: "Used app", te: "App లోకి వచ్చారు" },
+  categoryUsageHint: {
+    en: "Registered = can log in. Used app = logged in at least once with their phone.",
+    te: "నమోదు = లాగిన్ అవుతారు. App లోకి వచ్చారు = ఒకసారి ఫోన్ తో లాగిన్ అయ్యారు.",
+  },
   monthTotal: { en: "This Month", te: "ఈ నెల" },
   topContractor: { en: "Top Contractor", te: "టాప్ సభ్యుడు" },
   targetAchieved: { en: "Target Met", te: "లక్ష్యం చేరారు" },
@@ -68,6 +76,14 @@ export const adminLabels = {
   saveCard: { en: "Save", te: "సేవ్" },
   selectGiftDeliver: { en: "Gift to deliver", te: "ఇచ్చే బహుమతి" },
   giftImage: { en: "Image", te: "ఫోటో" },
+  giftImageUrl: {
+    en: "Gift image URL (or pick design below)",
+    te: "బహుమతి ఫోటో URL (లేదా కింద డిజైన్)",
+  },
+  giftImageUrlHint: {
+    en: "Paste a link (https://…) or use /gifts/your-file.jpg — saved with target & plan",
+    te: "లింక్ పేస్ట్ చేయండి (https://…) — లక్ష్యంతో సేవ్ అవుతుంది",
+  },
   addGiftRow: { en: "Add gift", te: "బహుమతి జోడించు" },
   addTargetAndGift: {
     en: "Add target & gift",
@@ -110,6 +126,17 @@ export const adminLabels = {
   tryAgain: { en: "Try Again", te: "మళ్ళీ చూడండి" },
   markDelivered: { en: "Mark Delivered", te: "ఇచ్చారు ✅" },
   saveTransaction: { en: "Save Transaction", te: "మొత్తం సేవ్" },
+  downloadDayList: { en: "Download by date", te: "తేదీ వారీ డౌన్‌లోడ్" },
+  downloadDayCsv: { en: "Download CSV", te: "CSV డౌన్‌లోడ్" },
+  downloadDayHint: {
+    en: "Pick a date to download all amounts added that day",
+    te: "ఆ రోజు జోడించిన మొత్తాలు CSV లో డౌన్‌లోడ్ చేయండి",
+  },
+  noTransactionsOnDay: {
+    en: "No transactions on this date",
+    te: "ఈ తేదీకి మొత్తాలు లేవు",
+  },
+  transactionsOnDay: { en: "on this date", te: "ఈ తేదీకి" },
   addContractorBtn: { en: "Add Contractor", te: "సభ్యుడిని జోడించు" },
   registry: { en: "Members", te: "సభ్యులు" },
   registrationCounts: { en: "Members by Trade", te: "పని వారీ సభ్యులు" },

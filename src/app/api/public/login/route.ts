@@ -62,6 +62,18 @@ export async function POST(request: Request) {
       );
     }
 
+    const { data: updated } = await supabase
+      .from("contractors")
+      .update({ first_login_at: new Date().toISOString() })
+      .eq("phone", phone)
+      .is("first_login_at", null)
+      .select("id");
+
+    if (updated && updated.length > 0) {
+      const { bustServerCache } = await import("@/lib/server/cache-sync");
+      bustServerCache();
+    }
+
     return NextResponse.json({
       token: data.qr_token,
       name: data.name_telugu,

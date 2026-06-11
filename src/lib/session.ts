@@ -12,10 +12,7 @@ import {
 import type { ContractorSession } from "./types";
 
 export function setContractorSession(token: string): void {
-  const session: ContractorSession = {
-    token,
-    expiresAt: Date.now() + SESSION_DURATION_MS,
-  };
+  const session: ContractorSession = { token: token.trim().toUpperCase() };
   localStorage.setItem(CONTRACTOR_SESSION_KEY, JSON.stringify(session));
 }
 
@@ -24,12 +21,10 @@ export function getContractorSession(): ContractorSession | null {
   try {
     const raw = localStorage.getItem(CONTRACTOR_SESSION_KEY);
     if (!raw) return null;
-    const session = JSON.parse(raw) as ContractorSession;
-    if (Date.now() > session.expiresAt) {
-      localStorage.removeItem(CONTRACTOR_SESSION_KEY);
-      return null;
-    }
-    return session;
+    const parsed = JSON.parse(raw) as ContractorSession & { expiresAt?: number };
+    const token = parsed.token?.trim().toUpperCase();
+    if (!token) return null;
+    return { token };
   } catch {
     return null;
   }

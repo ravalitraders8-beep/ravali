@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { BilingualField } from "./BilingualField";
+import { GiftImage } from "./GiftImage";
 import { adminLabels, ta } from "@/lib/admin-i18n";
 import {
   formatGiftPosition,
   getGiftTargetAmount,
   getGiftImagePresetsForCategory,
+  normalizeGiftImageSrc,
   MAX_GIFT_RANKS,
   presetGiftNames,
   rankEmoji,
@@ -99,6 +100,12 @@ export function CategoryGiftPlanEditor({
       image_src: imageSrc,
       ...(names ?? {}),
     });
+  };
+
+  const setImageUrl = (index: number, raw: string) => {
+    const normalized = normalizeGiftImageSrc(raw);
+    if (normalized) updateRow(index, { image_src: normalized });
+    else if (!raw.trim()) updateRow(index, { image_src: imagePresets[0]?.value ?? "" });
   };
 
   const cardUnlockLine = (gift: CategoryGift, rank: number) => {
@@ -209,8 +216,8 @@ export function CategoryGiftPlanEditor({
                     <p className="mb-2 text-xs font-black uppercase text-gray-500">
                       {L("giftPreview")}
                     </p>
-                    <div className="relative h-24 w-24 overflow-hidden rounded-lg">
-                      <Image
+                    <div className="relative h-24 w-24 overflow-hidden rounded-lg bg-white">
+                      <GiftImage
                         src={g.image_src}
                         alt={g.name_english}
                         width={96}
@@ -224,6 +231,20 @@ export function CategoryGiftPlanEditor({
                   </div>
 
                   <div className="space-y-3">
+                    <label className="block text-sm font-bold text-[#1a2744]">
+                      {L("giftImageUrl")}
+                      <input
+                        type="url"
+                        value={g.image_src}
+                        onChange={(e) => setImageUrl(index, e.target.value)}
+                        placeholder="https://example.com/tv-photo.jpg"
+                        className="mt-1 min-h-[44px] w-full rounded-xl border-2 border-gray-200 px-3 text-sm font-semibold"
+                      />
+                      <span className="mt-1 block text-xs font-medium text-gray-500">
+                        {L("giftImageUrlHint")}
+                      </span>
+                    </label>
+
                     <div>
                       <p className="mb-1.5 text-xs font-black uppercase text-gray-500">
                         {L("giftDesign")}
@@ -242,7 +263,7 @@ export function CategoryGiftPlanEditor({
                                   : "border-gray-200 bg-white hover:border-orange-300"
                               }`}
                             >
-                              <Image
+                              <GiftImage
                                 src={p.value}
                                 alt={p.labelEn}
                                 width={40}

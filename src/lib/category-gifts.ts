@@ -12,6 +12,15 @@ export type { CategoryGift };
 
 export const MAX_GIFT_RANKS = 10;
 
+/** Normalize gift image path or external URL from admin input */
+export function normalizeGiftImageSrc(raw: string): string {
+  const s = raw.trim();
+  if (!s) return "";
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith("/")) return s;
+  return `/${s}`;
+}
+
 /** Mason uses real photos; other trades can reuse these paths until custom assets exist. */
 export const GIFT_IMAGE_PRESETS: { value: string; labelEn: string; labelTe: string }[] = [
   ...MASON_GIFT_IMAGE_PRESETS,
@@ -72,7 +81,9 @@ function normalizeGift(raw: unknown): CategoryGift | null {
   if (!name_english && name_telugu) name_english = name_telugu;
   if (!name_telugu && name_english) name_telugu = name_english;
   name_telugu = simplifyTeluguToLocal(sanitizeTeluguOutput(name_telugu));
-  const image_src = String(g.image_src ?? "/gifts/mason-design-kit.jpg").trim();
+  const rawImage = String(g.image_src ?? "").trim();
+  const image_src =
+    normalizeGiftImageSrc(rawImage) || "/gifts/mason-design-kit.jpg";
   const targetRaw = Number(g.target_amount);
   const target_amount =
     Number.isFinite(targetRaw) && targetRaw > 0 ? Math.round(targetRaw) : undefined;
@@ -85,7 +96,7 @@ function normalizeGift(raw: unknown): CategoryGift | null {
     name_telugu,
     description_english: String(g.description_english ?? "").trim() || undefined,
     description_telugu: String(g.description_telugu ?? "").trim() || undefined,
-    image_src: image_src.startsWith("/") ? image_src : `/${image_src}`,
+    image_src,
   };
 }
 

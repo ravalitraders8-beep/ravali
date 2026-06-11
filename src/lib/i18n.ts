@@ -127,6 +127,7 @@ export const labels = {
     te: "మొబైల్ లో తెరిచి App జోడించండి.",
   },
   backToLogin: { en: "Back to login", te: "లాగిన్‌కు వెనుక" },
+  logout: { en: "Logout", te: "బయటకు" },
   welcome: { en: "Hello", te: "నమస్తే" },
   you: { en: "You", te: "మీరు" },
   allCategories: { en: "All", te: "అందరు" },

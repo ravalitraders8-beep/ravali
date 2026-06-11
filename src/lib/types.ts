@@ -35,6 +35,7 @@ export interface Contractor {
   qr_token: string;
   is_active: boolean;
   joined_date: string;
+  first_login_at?: string | null;
   categories?: Category;
 }
 
@@ -116,5 +117,4 @@ export type Lang = "en" | "te";
 
 export interface ContractorSession {
   token: string;
-  expiresAt: number;
 }
