@@ -477,6 +477,17 @@ export function AdminDashboard() {
     await loadAll(true);
   };
 
+  const migrateOldData = async () => {
+    if (!window.confirm("Run one-time migration to fix old bags showing as 0?")) return;
+    const { ok, data } = await adminPostAction({ action: "migrate_old_data" });
+    if (!ok) {
+      showToast(String((data as any)?.message || "Failed"));
+      return;
+    }
+    showToast("Old data fixed successfully!");
+    await loadAll(true);
+  };
+
   const syncRewardsDraft = useCallback((cats: Category[]) => {
     const draft: Record<string, CategoryGift[]> = {};
     for (const cat of cats) {
@@ -802,6 +813,16 @@ export function AdminDashboard() {
       <main className="mx-auto max-w-5xl space-y-4 p-4">
         {tab === "overview" && stats && (
           <>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">Overview</h2>
+              <button
+                type="button"
+                onClick={() => void migrateOldData()}
+                className="rounded-lg bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-700 hover:bg-indigo-200"
+              >
+                🛠️ Fix Old Bags (Run Once)
+              </button>
+            </div>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
               <StatCard label={L("activeContractors")} value={stats.totalActive} />
               <StatCard label={L("loggedInOnce")} value={totalLoggedInOnce} />

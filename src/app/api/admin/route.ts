@@ -483,6 +483,29 @@ export async function POST(request: NextRequest) {
       return jsonNoStore({ ok: true, resetCount });
     }
 
+    if (body.action === "migrate_old_data") {
+      const { error: txError } = await supabase
+        .from("transactions")
+        .update({ month_year: "ALL_TIME" })
+        .neq("month_year", "ALL_TIME");
+
+      if (txError) return NextResponse.json({ message: txError.message }, { status: 400 });
+
+      const { error: rwError } = await supabase
+        .from("rewards_delivered")
+        .update({ month_year: "ALL_TIME" })
+        .neq("month_year", "ALL_TIME");
+
+      if (rwError) return NextResponse.json({ message: rwError.message }, { status: 400 });
+
+      await supabase.from("admin_logs").insert({
+        action: "migrate_old_data",
+        details: "Migrated all old transactions and rewards to ALL_TIME",
+      });
+      bustServerCache();
+      return jsonNoStore({ ok: true });
+    }
+
     if (body.action === "deliver_reward" || body.action === "deliver_category_gift") {
       const {
         contractor_id,
