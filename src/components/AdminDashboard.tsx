@@ -459,6 +459,24 @@ export function AdminDashboard() {
     await loadAll(true);
   };
 
+  const resetCategoryBalances = async (cat: Category) => {
+    if (!window.confirm(ta(lang, 
+      `Are you sure you want to STOP the target and reset ALL contractors in ${categoryName(cat)} to 0?`, 
+      `మీరు ఖచ్చితంగా లక్ష్యాన్ని ఆపి, ${categoryName(cat)} లోని కాంట్రాక్టర్లందరినీ 0కి రీసెట్ చేయాలనుకుంటున్నారా?`
+    ))) return;
+    
+    const { ok, data } = await adminPostAction({
+      action: "reset_category_balances",
+      category_id: cat.id,
+    });
+    if (!ok) {
+      showToast(String(data.message ?? data.error ?? L("failed")));
+      return;
+    }
+    showToast(`Cycle Reset for ${data.resetCount || 0} contractors`);
+    await loadAll(true);
+  };
+
   const syncRewardsDraft = useCallback((cats: Category[]) => {
     const draft: Record<string, CategoryGift[]> = {};
     for (const cat of cats) {
@@ -1617,6 +1635,15 @@ export function AdminDashboard() {
                     >
                       💾 {L("savePlan")}
                     </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => void resetCategoryBalances(cat)}
+                      className="btn-big mt-2 w-full rounded-2xl border-4 border-red-500 bg-white text-red-600 hover:bg-red-50"
+                    >
+                      🛑 {ta(lang, "Stop Target & Reset Everyone to 0", "లక్ష్యాన్ని ఆపి, అందరినీ 0కి రీసెట్ చేయండి")}
+                    </button>
+                    
                     <p className="mt-2 text-center text-xs font-medium text-gray-500">
                       {ta(
                         lang,

@@ -438,6 +438,51 @@ export async function POST(request: NextRequest) {
       return jsonNoStore({ ok: true });
     }
 
+    if (body.action === "reset_category_balances") {
+      const { category_id } = body;
+      if (!category_id) return NextResponse.json({ message: "Category id required" }, { status: 400 });
+
+      // 1. Get all active contractors in this category
+      const { data: contractors, error: contractorsError } = await supabase
+        .from("contractors")
+        .select("id")
+        .eq("category_id", category_id)
+        .eq("is_active", true);
+
+      if (contractorsError) return NextResponse.json({ message: contractorsError.message }, { status: 400 });
+
+      const dateStr = new Date().toISOString().slice(0, 10);
+      let resetCount = 0;
+
+      // 2. Insert negative transactions to reset balance for each
+      for (const contractor of contractors || []) {
+        const { data: balanceData } = await supabase.rpc("get_contractor_monthly_amount", {
+          p_contractor_id: contractor.id,
+          p_month_year: "ALL_TIME"
+        });
+        const currentBalance = Number(balanceData || 0);
+
+        if (currentBalance > 0) {
+          await supabase.from("transactions").insert({
+            contractor_id: contractor.id,
+            amount: -currentBalance,
+            reason_english: "Target Reset",
+            reason_telugu: "లక్ష్యం రీసెట్",
+            transaction_date: dateStr,
+            month_year: "ALL_TIME",
+          });
+          resetCount++;
+        }
+      }
+
+      await supabase.from("admin_logs").insert({
+        action: "reset_category",
+        details: `Reset target balance for ${resetCount} contractors in category ${category_id}`,
+      });
+      bustServerCache();
+      return jsonNoStore({ ok: true, resetCount });
+    }
+
     if (body.action === "deliver_reward" || body.action === "deliver_category_gift") {
       const {
         contractor_id,
