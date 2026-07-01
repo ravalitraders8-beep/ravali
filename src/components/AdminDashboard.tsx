@@ -445,6 +445,20 @@ export function AdminDashboard() {
     await loadAll(true);
   };
 
+  const resetBalance = async (id: string) => {
+    if (!window.confirm(ta(lang, "Are you sure you want to reset the balance to 0?", "మీరు ఖచ్చితంగా బ్యాలెన్స్‌ను 0కి రీసెట్ చేయాలనుకుంటున్నారా?"))) return;
+    const { ok, data } = await adminPostAction({
+      action: "reset_contractor_balance",
+      contractor_id: id,
+    });
+    if (!ok) {
+      showToast(String(data.message ?? data.error ?? L("failed")));
+      return;
+    }
+    showToast("Balance Reset");
+    await loadAll(true);
+  };
+
   const syncRewardsDraft = useCallback((cats: Category[]) => {
     const draft: Record<string, CategoryGift[]> = {};
     for (const cat of cats) {
@@ -1130,6 +1144,13 @@ export function AdminDashboard() {
                         className="min-h-[44px] rounded-xl bg-red-100 px-4 text-sm font-bold text-red-700"
                       >
                         🗑️ {L("delete")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void resetBalance(c.id)}
+                        className="min-h-[44px] rounded-xl bg-blue-100 px-4 text-sm font-bold text-blue-700"
+                      >
+                        🔄 Reset Balance
                       </button>
                     </div>
                   </div>

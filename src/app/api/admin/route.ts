@@ -402,6 +402,42 @@ export async function POST(request: NextRequest) {
       return jsonNoStore({ ok: true });
     }
 
+    if (body.action === "reset_contractor_balance") {
+      const { contractor_id } = body;
+      if (!contractor_id) return NextResponse.json({ message: "Contractor id required" }, { status: 400 });
+
+      const { data: balanceData, error: balanceError } = await supabase.rpc("get_contractor_monthly_amount", {
+        p_contractor_id: contractor_id,
+        p_month_year: "ALL_TIME"
+      });
+
+      if (balanceError) return NextResponse.json({ message: balanceError.message }, { status: 400 });
+      const currentBalance = Number(balanceData || 0);
+
+      if (currentBalance === 0) {
+        return NextResponse.json({ message: "Balance is already 0 | ఇప్పటికే బ్యాలెన్స్ 0 గా ఉంది" }, { status: 400 });
+      }
+
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const { error } = await supabase.from("transactions").insert({
+        contractor_id,
+        amount: -currentBalance,
+        reason_english: "Manual Reset",
+        reason_telugu: "మాన్యువల్ రీసెట్",
+        transaction_date: dateStr,
+        month_year: "ALL_TIME",
+      });
+
+      if (error) return NextResponse.json({ message: error.message }, { status: 400 });
+      await supabase.from("admin_logs").insert({
+        action: "reset_balance",
+        target_contractor_id: contractor_id,
+        details: `Reset balance from ₹${currentBalance} to ₹0`,
+      });
+      bustServerCache();
+      return jsonNoStore({ ok: true });
+    }
+
     if (body.action === "deliver_reward" || body.action === "deliver_category_gift") {
       const {
         contractor_id,

@@ -7,10 +7,7 @@ export function formatINR(amount: number): string {
 }
 
 export function getCurrentMonthYear(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
+  return "ALL_TIME";
 }
 
 export function getProgressStatus(percent: number): {
