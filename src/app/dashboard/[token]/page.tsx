@@ -36,6 +36,7 @@ export default function DashboardPage() {
 
   const { data, loading, error } = useCachedApi(fetcher, {
     watchTags: [CACHE_TAGS.CONTRACTOR, CACHE_TAGS.ADMIN],
+    refreshIntervalMs: 30_000,
   });
 
   const errorKind = useMemo(() => parseDashboardError(error), [error]);

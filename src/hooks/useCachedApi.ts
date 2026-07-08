@@ -7,13 +7,15 @@ import type { CacheTag } from "@/lib/cache-tags";
 interface UseCachedApiOptions {
   watchTags?: CacheTag[];
   refreshOnFocus?: boolean;
+  /** Poll for fresh data while the tab is visible (ms). */
+  refreshIntervalMs?: number;
 }
 
 export function useCachedApi<T>(
   fetcher: (force?: boolean) => Promise<T>,
   options: UseCachedApiOptions = {}
 ) {
-  const { watchTags = [], refreshOnFocus = true } = options;
+  const { watchTags = [], refreshOnFocus = true, refreshIntervalMs } = options;
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
@@ -55,6 +57,14 @@ export function useCachedApi<T>(
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [load, refreshOnFocus]);
+
+  useEffect(() => {
+    if (!refreshIntervalMs || refreshIntervalMs <= 0) return;
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "visible") void load(true);
+    }, refreshIntervalMs);
+    return () => window.clearInterval(id);
+  }, [load, refreshIntervalMs]);
 
   return { data, loading, error, refresh: () => load(true) };
 }

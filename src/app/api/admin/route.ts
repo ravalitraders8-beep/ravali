@@ -307,8 +307,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const [y, m] = dateStr.split("-");
-      const txMonthYear = `${y}-${m}`;
+      const monthYear = getCurrentMonthYear();
 
       const { data, error } = await supabase
         .from("transactions")
@@ -318,11 +317,17 @@ export async function POST(request: NextRequest) {
           reason_english,
           reason_telugu,
           transaction_date: dateStr,
-          month_year: txMonthYear,
+          month_year: monthYear,
         })
         .select()
         .single();
       if (error) return NextResponse.json({ message: error.message }, { status: 400 });
+
+      // Repair any legacy calendar-month rows so totals and leaderboard stay in sync
+      await supabase
+        .from("transactions")
+        .update({ month_year: monthYear })
+        .neq("month_year", monthYear);
       await supabase.from("admin_logs").insert({
         action: "add_transaction",
         target_contractor_id: contractor_id,
@@ -363,8 +368,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const [y, m] = dateStr.split("-");
-      const month_year = `${y}-${m}`;
+      const monthYear = getCurrentMonthYear();
 
       const { error } = await supabase
         .from("transactions")
@@ -374,11 +378,16 @@ export async function POST(request: NextRequest) {
           reason_english,
           reason_telugu,
           transaction_date: dateStr,
-          month_year,
+          month_year: monthYear,
         })
         .eq("id", id);
 
       if (error) return NextResponse.json({ message: error.message }, { status: 400 });
+
+      await supabase
+        .from("transactions")
+        .update({ month_year: monthYear })
+        .neq("month_year", monthYear);
       await supabase.from("admin_logs").insert({
         action: "update_transaction",
         target_contractor_id: contractor_id,

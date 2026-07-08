@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { jsonWithCache } from "@/lib/cache-headers";
+import { jsonNoStore } from "@/lib/cache-headers";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getContractorDashboardData } from "@/lib/server/contractor-dashboard";
 
@@ -45,7 +45,7 @@ export async function GET(
       );
     }
 
-    return jsonWithCache(result, "private-short");
+    return jsonNoStore(result);
   } catch (e) {
     return NextResponse.json(
       { error: "server_error", message: e instanceof Error ? e.message : "Failed to load" },
