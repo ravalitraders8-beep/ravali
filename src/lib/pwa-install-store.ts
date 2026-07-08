@@ -1,4 +1,4 @@
-/** Global PWA install prompt — captured before React hydrates so Chrome never misses it */
+/** PWA capture runs from /public/pwa-capture.js (beforeInteractive in root layout). */
 
 export const PWA_INSTALLED_KEY = "ravali-pwa-installed";
 export const PWA_STATE_EVENT = "ravali-pwa-state";
@@ -24,36 +24,6 @@ function getStore() {
   }
   return w.__ravaliPwa;
 }
-
-/** Inline script body — runs in layout before React */
-export const PWA_CAPTURE_SCRIPT = `
-(function () {
-  if (typeof window === "undefined") return;
-  window.__ravaliPwa = window.__ravaliPwa || { prompt: null, ready: false };
-
-  if (!window.__ravaliPwaCaptureInit) {
-    window.__ravaliPwaCaptureInit = true;
-
-    window.addEventListener("beforeinstallprompt", function (e) {
-      e.preventDefault();
-      window.__ravaliPwa.prompt = e;
-      window.__ravaliPwa.ready = true;
-      window.dispatchEvent(new Event("${PWA_PROMPT_READY_EVENT}"));
-    });
-
-    window.addEventListener("appinstalled", function () {
-      window.__ravaliPwa.prompt = null;
-      window.__ravaliPwa.ready = false;
-      try { localStorage.setItem("${PWA_INSTALLED_KEY}", "1"); } catch (err) {}
-      window.dispatchEvent(new Event("${PWA_STATE_EVENT}"));
-    });
-
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(function () {});
-    }
-  }
-})();
-`;
 
 export function getDeferredInstallPrompt(): DeferredInstallPrompt | null {
   return getStore()?.prompt ?? null;

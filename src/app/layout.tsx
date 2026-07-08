@@ -3,7 +3,6 @@ import { Noto_Sans_Telugu, Inter } from "next/font/google";
 import { LangProvider } from "@/context/LangContext";
 import { LangDocumentSync } from "@/components/LangDocumentSync";
 import { PWARegister } from "@/components/PWARegister";
-import { PWA_CAPTURE_SCRIPT } from "@/lib/pwa-install-store";
 import Script from "next/script";
 import "./globals.css";
 
@@ -68,13 +67,8 @@ export default function RootLayout({
       translate="no"
       className={`notranslate ${notoTelugu.variable} ${inter.variable} h-full bg-white`}
     >
-      <head>
-        <meta name="google" content="notranslate" />
-        <Script id="ravali-pwa-capture" strategy="beforeInteractive">
-          {PWA_CAPTURE_SCRIPT}
-        </Script>
-      </head>
       <body className="notranslate min-h-full flex flex-col bg-white font-sans text-gray-900 antialiased">
+        <Script id="ravali-pwa-capture" src="/pwa-capture.js" strategy="beforeInteractive" />
         <LangProvider>
           <LangDocumentSync />
           {children}
